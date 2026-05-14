@@ -1,0 +1,691 @@
+body{background:#f4f6f8;color:#1f2937}.layout{display:flex;min-height:100vh}.sidebar{width:230px;background:#1f2937;color:#fff;position:fixed;top:0;bottom:0;left:0;padding:18px 14px;overflow:auto}.brand{font-size:22px;font-weight:700;margin-bottom:18px}.sidebar .nav-link{color:#dbeafe;border-radius:8px;margin:2px 0}.sidebar .nav-link:hover{background:#374151;color:#fff}.main{margin-left:230px;width:calc(100% - 230px);padding:24px}.topbar h1{font-size:26px;font-weight:700;margin-bottom:18px}.card{border:0;border-radius:14px;box-shadow:0 3px 12px rgba(15,23,42,.08)}.kpi{padding:18px}.kpi strong{font-size:32px}.placeholder-box{height:180px;border:2px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#64748b}.dropzone-box{border:2px dashed #94a3b8;border-radius:14px;padding:24px;background:#f8fafc}.badge-quality.ok{background:#16a34a}.badge-quality.ng{background:#dc2626}.badge-quality.warn{background:#f59e0b}.table td,.table th{vertical-align:middle}
+
+/* =========================================================
+   SeikanTool Dashboard Redesign
+   追記専用：既存スタイルは削除・変更しない
+========================================================= */
+
+.dashboard-redesign {
+  padding: 0.25rem 0 1.75rem;
+}
+
+.topbar h1:empty {
+  display: none;
+  margin: 0;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.dashboard-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-updated {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.dashboard-updated i {
+  margin-right: 0.25rem;
+}
+
+.dashboard-version {
+  display: inline-flex;
+  align-items: center;
+  max-width: 180px;
+  padding: 0.28rem 0.7rem;
+  border: 1px solid #d8dee8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* ダッシュボード アラートバナー */
+.alert-ng-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.78rem 0.95rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(135deg, #E24B4A, #A32D2D);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(226, 75, 74, 0.18);
+}
+
+.alert-ng-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.alert-ng-message i {
+  font-size: 1rem;
+}
+
+.alert-ng-link {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0.92;
+}
+
+.alert-ng-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  opacity: 1;
+}
+
+/* KPI カード（新仕様） */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.kpi-card {
+  min-height: 116px;
+  padding: 0.9rem 1rem;
+  border: 1px solid #d8dee8;
+  border-left: 4px solid #94a3b8;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.kpi-blue {
+  border-left-color: #378ADD;
+}
+
+.kpi-green {
+  border-left-color: #1D9E75;
+}
+
+.kpi-red {
+  border-left-color: #E24B4A;
+}
+
+.kpi-purple {
+  border-left-color: #7F77DD;
+}
+
+.kpi-alert {
+  background: #FCEBEB;
+  border-color: #F7C1C1;
+  border-left-color: #E24B4A;
+}
+
+.kpi-alert .kpi-value {
+  color: #A32D2D;
+}
+
+.kpi-alert .kpi-label,
+.kpi-alert .kpi-sub {
+  color: #791F1F;
+}
+
+.kpi-label {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.kpi-label i {
+  font-size: 0.95rem;
+}
+
+.kpi-blue .kpi-label i {
+  color: #378ADD;
+}
+
+.kpi-green .kpi-label i {
+  color: #1D9E75;
+}
+
+.kpi-red .kpi-label i {
+  color: #E24B4A;
+}
+
+.kpi-purple .kpi-label i {
+  color: #7F77DD;
+}
+
+.kpi-value {
+  font-size: 1.9rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+}
+
+.kpi-sub {
+  margin-top: 0.28rem;
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+/* 照合プログレスバー */
+.status-progress-card {
+  padding: 0.8rem 0.95rem;
+  border: 1px solid #d8dee8;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
+  margin-bottom: 1rem;
+}
+
+.status-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.dashboard-progress {
+  height: 0.48rem;
+  border-radius: 999px;
+  background: #e8edf5;
+  overflow: hidden;
+}
+
+.progress-bar-ok {
+  background: #1D9E75;
+}
+
+/* メインカード */
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  gap: 1rem;
+}
+
+.dashboard-panel {
+  min-width: 0;
+  padding: 1rem 1.15rem;
+  border: 1px solid #d8dee8;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.panel-title i {
+  color: #334155;
+}
+
+.panel-count-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.58rem;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.panel-sub {
+  color: #94a3b8;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+/* 出荷予定テーブル */
+.dashboard-table {
+  margin-bottom: 0;
+  table-layout: fixed;
+}
+
+.dashboard-table thead th {
+  padding: 0.48rem 0.35rem;
+  border-bottom: 1px solid #d8dee8;
+  color: #64748b;
+  font-size: 0.73rem;
+  font-weight: 800;
+}
+
+.dashboard-table tbody td {
+  padding: 0.6rem 0.35rem;
+  border-bottom: 1px solid #edf1f6;
+  color: #334155;
+  font-size: 0.8rem;
+}
+
+.dashboard-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.dashboard-table .ship-date {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.dashboard-table .product-name {
+  max-width: 180px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.empty-row {
+  padding: 1.4rem 0.35rem !important;
+  text-align: center;
+  color: #94a3b8 !important;
+  font-size: 0.8rem !important;
+}
+
+/* 品質バッジ：ダッシュボード内だけに限定 */
+.dashboard-redesign .badge-quality {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.8rem;
+  padding: 0.16rem 0.48rem;
+  border-radius: 0.35rem;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dashboard-redesign .badge-quality.ok {
+  background: #E1F5EE;
+  color: #085041;
+}
+
+.dashboard-redesign .badge-quality.ng {
+  background: #FCEBEB;
+  color: #A32D2D;
+}
+
+.dashboard-redesign .badge-quality.warn {
+  background: #FAEEDA;
+  color: #633806;
+}
+
+.dashboard-redesign .badge-quality.muted {
+  background: #eef2f7;
+  color: #475569;
+}
+
+/* キャパグラフ */
+.capacity-chart-wrap {
+  position: relative;
+  height: 185px;
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #edf1f6;
+}
+
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 4px;
+}
+
+.legend-over {
+  background: #E24B4A;
+}
+
+.legend-warn {
+  background: #BA7517;
+}
+
+.legend-ok {
+  background: #1D9E75;
+}
+
+/* ダーク系テーマが既存側にある場合の見え方補正 */
+body.dark .dashboard-title,
+body.dark .panel-title,
+body.dark .kpi-value,
+body.dark .dashboard-table .ship-date,
+body.dark .dashboard-table .product-name,
+body.dark .dashboard-table tbody td,
+html.dark .dashboard-title,
+html.dark .panel-title,
+html.dark .kpi-value,
+html.dark .dashboard-table .ship-date,
+html.dark .dashboard-table .product-name,
+html.dark .dashboard-table tbody td {
+  color: #f8fafc;
+}
+
+body.dark .dashboard-version,
+body.dark .kpi-card,
+body.dark .status-progress-card,
+body.dark .dashboard-panel,
+html.dark .dashboard-version,
+html.dark .kpi-card,
+html.dark .status-progress-card,
+html.dark .dashboard-panel {
+  background: #1f2421;
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+}
+
+body.dark .kpi-alert,
+html.dark .kpi-alert {
+  background: #3a2020;
+  border-color: #7f2c2c;
+}
+
+body.dark .kpi-label,
+body.dark .kpi-sub,
+body.dark .dashboard-updated,
+body.dark .status-progress-header,
+body.dark .dashboard-table thead th,
+body.dark .chart-legend span,
+body.dark .panel-sub,
+html.dark .kpi-label,
+html.dark .kpi-sub,
+html.dark .dashboard-updated,
+html.dark .status-progress-header,
+html.dark .dashboard-table thead th,
+html.dark .chart-legend span,
+html.dark .panel-sub {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+body.dark .dashboard-progress,
+html.dark .dashboard-progress {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+body.dark .dashboard-table thead th,
+body.dark .dashboard-table tbody td,
+body.dark .chart-legend,
+html.dark .dashboard-table thead th,
+html.dark .dashboard-table tbody td,
+html.dark .chart-legend {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* レスポンシブ */
+@media (max-width: 1100px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-header,
+  .alert-ng-banner,
+  .status-progress-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-panel {
+    padding: 0.9rem;
+  }
+
+  .capacity-chart-wrap {
+    height: 170px;
+  }
+}
+
+
+/* =========================================================
+   SeikanTool Sidebar Redesign
+   追記専用：既存スタイルは削除・変更しない
+========================================================= */
+
+/* 既存 .sidebar の width / fixed / overflow は維持し、見た目だけ上書き */
+.sidebar {
+  background: #1e2d45;
+  padding: 18px 10px 24px;
+}
+
+/* 既存 .brand を使わなくなるため、新ブランドエリアを定義 */
+.sb-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  padding: 4px 6px 10px;
+}
+
+.sb-brand-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #378ADD;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(55, 138, 221, 0.28);
+}
+
+.sb-brand-icon i {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.sb-brand-name {
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.sb-brand-sub {
+  margin-top: 2px;
+  color: rgba(255,255,255,0.45);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* セクション */
+.sb-section-label {
+  margin: 12px 8px 7px;
+  color: rgba(255,255,255,0.4);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.sb-divider {
+  height: 1px;
+  margin: 14px 6px 12px;
+  background: rgba(255,255,255,0.1);
+}
+
+/* ナビ */
+.sb-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sb-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 9px 10px;
+  border-left: 3px solid transparent;
+  border-radius: 9px;
+  color: #b8d4f0;
+  font-size: 13px;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.sb-link i {
+  width: 18px;
+  flex: 0 0 18px;
+  color: currentColor;
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+  opacity: 0.92;
+}
+
+.sb-link span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sb-link:hover {
+  background: rgba(255,255,255,0.07);
+  color: #e0f0ff;
+  text-decoration: none;
+  transform: translateX(1px);
+}
+
+/* アクティブ */
+.sb-link.sb-active {
+  background: rgba(55,138,221,0.22);
+  border-left-color: #5AABFF;
+  color: #e0f0ff;
+  font-weight: 600;
+}
+
+.sb-link.sb-active i {
+  color: #5AABFF;
+  opacity: 1;
+}
+
+/* MASTERセクション */
+.sb-nav-master .sb-link {
+  min-height: 34px;
+  padding: 8px 10px;
+  color: #8fb8d8;
+  font-size: 12px;
+}
+
+.sb-nav-master .sb-link i {
+  width: 16px;
+  flex-basis: 16px;
+  font-size: 14px;
+}
+
+.sb-nav-master .sb-link:hover {
+  color: #b8d4f0;
+}
+
+.sb-nav-master .sb-link.sb-active {
+  color: #e0f0ff;
+}
+
+/* 既存 Bootstrap .nav-link が残っていても干渉しないよう保険 */
+.sidebar .sb-link.nav-link {
+  color: #b8d4f0;
+}
+
+/* スクロールバーの見た目を軽く整える */
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.04);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.16);
+  border-radius: 999px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.24);
+}
+
+/* 幅が狭い環境での保険 */
+@media (max-width: 900px) {
+  .sb-brand {
+    gap: 8px;
+  }
+
+  .sb-brand-name {
+    font-size: 14px;
+  }
+
+  .sb-link {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .sb-nav-master .sb-link {
+    font-size: 11px;
+  }
+}

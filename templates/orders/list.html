@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block h1 %}受注一覧{% endblock %}
+{% block content %}
+<form class="card p-3 mb-3 row g-2" method="get">
+  <div class="col-md"><input class="form-control" name="customer" placeholder="客先" value="{{ f.get('customer','') }}"></div>
+  <div class="col-md"><input class="form-control" name="product" placeholder="品名" value="{{ f.get('product','') }}"></div>
+  <div class="col-md"><select class="form-select" name="status"><option value="">ステータス</option>{% for s in ['受注中','完了','調整中'] %}<option value="{{s}}" {% if f.get('status')==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select></div>
+  <div class="col-md"><select class="form-select" name="quality"><option value="">品質</option>{% for q in ['照合OK','品名未登録','客先未登録','工程標準未登録','要確認','除外対象'] %}<option value="{{q}}" {% if f.get('quality')==q %}selected{% endif %}>{{q}}</option>{% endfor %}</select></div>
+  <div class="col-auto"><button class="btn btn-primary">検索</button></div>
+  <div class="col-auto"><a class="btn btn-outline-success" href="{{ url_for('orders.export_orders') }}">Excel出力</a></div>
+</form>
+<form method="post" action="{{ url_for('orders.quality_check') }}" class="mb-2"><button class="btn btn-sm btn-secondary">データ品質チェック一括実行</button></form>
+<div class="card p-3 table-responsive">
+<table class="table table-sm table-hover align-middle">
+<tr><th>ID</th><th>品名</th><th>工程品名</th><th>出荷先</th><th>出荷日</th><th>数量</th><th>ステータス</th><th>品質</th><th>操作</th></tr>
+{% for o in orders %}
+<tr data-order-id="{{ o.order_id }}"><td>{{ o.order_id }}</td><td>{{ o.product_name }}</td><td>{{ o.process_product_name or '' }}</td><td>{{ o.customer }}</td><td>{{ o.ship_date }}</td><td>{{ o.quantity }}</td><td>{{ o.status }}</td><td><span class="badge {{ 'text-bg-success' if o.data_quality=='照合OK' else ('text-bg-warning' if o.data_quality=='要確認' else 'text-bg-danger') }}">{{ o.data_quality }}</span></td><td><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit{{o.order_id}}">編集</button><form method="post" action="{{ url_for('scheduler.generate', order_id=o.order_id) }}" class="d-inline"><button class="btn btn-sm btn-outline-info">工程生成</button></form></td></tr>
+<div class="modal fade" id="edit{{o.order_id}}"><div class="modal-dialog"><div class="modal-content"><form method="post" action="{{ url_for('orders.edit_order', order_id=o.order_id) }}"><div class="modal-header"><h5>受注編集 #{{o.order_id}}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<input class="form-control mb-2" name="product_name" value="{{ o.product_name }}"><input class="form-control mb-2" name="process_product_name" value="{{ o.process_product_name or '' }}"><input class="form-control mb-2" name="customer" value="{{ o.customer }}"><input class="form-control mb-2" type="date" name="ship_date" value="{{ o.ship_date }}"><input class="form-control mb-2" type="number" name="quantity" value="{{ o.quantity }}"><select class="form-select" name="status">{% for s in ['受注中','完了','調整中'] %}<option {% if o.status==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select>
+</div><div class="modal-footer"><button class="btn btn-primary">保存</button></div></form></div></div></div>
+{% endfor %}
+</table>
+<nav><ul class="pagination pagination-sm">{% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{pagination.prev_num}}">前</a></li>{% endif %}<li class="page-item disabled"><span class="page-link">{{pagination.page}} / {{pagination.pages or 1}}</span></li>{% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{pagination.next_num}}">次</a></li>{% endif %}</ul></nav>
+</div>
+{% endblock %}

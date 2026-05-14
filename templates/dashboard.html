@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{%- block h1 -%}{%- endblock -%}
+
+
+{% block content %}
+{% set progress_percent = ((ok / total * 100) if total else 0) %}
+
+<div class="dashboard-redesign">
+
+  {% if ng > 0 %}
+  <div class="alert-ng-banner mb-3">
+    <div class="alert-ng-message">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span>未照合の受注が <strong>{{ ng }}</strong> 件あります。受注一覧で確認してください。</span>
+    </div>
+    <a href="{{ url_for('orders.list_orders') }}" class="alert-ng-link">→ 受注一覧</a>
+  </div>
+  {% endif %}
+
+  <div class="dashboard-header">
+    <div>
+      <h1 class="dashboard-title">キャパダッシュボード</h1>
+      <p class="dashboard-updated">
+        <i class="bi bi-arrow-clockwise"></i>
+        更新: <span id="dashboardUpdated">表示時点</span>
+      </p>
+    </div>
+    <span class="dashboard-version">SeikanTool {{ edition }}</span>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-label">
+        <i class="bi bi-box-seam"></i>
+        <span>受注件数</span>
+      </div>
+      <div class="kpi-value">{{ total }}</div>
+      <div class="kpi-sub">今月累計</div>
+    </div>
+
+    <div class="kpi-card kpi-green">
+      <div class="kpi-label">
+        <i class="bi bi-check-circle"></i>
+        <span>照合OK</span>
+      </div>
+      <div class="kpi-value">{{ ok }}</div>
+      <div class="kpi-sub">承認済み</div>
+    </div>
+
+    <div class="kpi-card kpi-red {% if ng > 0 %}kpi-alert{% endif %}">
+      <div class="kpi-label">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span>未照合</span>
+      </div>
+      <div class="kpi-value">{{ ng }}</div>
+      <div class="kpi-sub">要対応</div>
+    </div>
+
+    <div class="kpi-card kpi-purple">
+      <div class="kpi-label">
+        <i class="bi bi-truck"></i>
+        <span>今月出荷数量</span>
+      </div>
+      <div class="kpi-value">{{ "{:,}".format(this_month_qty or 0) }}</div>
+      <div class="kpi-sub">pcs</div>
+    </div>
+  </div>
+
+  <div class="status-progress-card">
+    <div class="status-progress-header">
+      <span>照合ステータス</span>
+      <span>{{ ok }} / {{ total }} 件完了　残 {{ ng }}件</span>
+    </div>
+    <div class="progress dashboard-progress" role="progressbar" aria-valuenow="{{ progress_percent|round(0) }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar progress-bar-ok" style="width: {{ progress_percent }}%;"></div>
+    </div>
+  </div>
+
+  <div class="dashboard-main-grid">
+    <div class="dashboard-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <i class="bi bi-calendar-event"></i>
+          直近30日の出荷予定
+        </h2>
+        <span class="panel-count-badge">{{ upcoming|length }}件</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle dashboard-table">
+          <thead>
+            <tr>
+              <th>出荷日</th>
+              <th>品名</th>
+              <th>客先</th>
+              <th class="text-end">数量</th>
+              <th class="text-center">品質</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if upcoming %}
+              {% for o in upcoming %}
+              <tr>
+                <td class="ship-date">
+                  {% if o.ship_date %}
+                    {{ o.ship_date.strftime('%m/%d') }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td class="text-truncate product-name" title="{{ o.product_name }}">{{ o.product_name }}</td>
+                <td>{{ o.customer }}</td>
+                <td class="text-end">{{ "{:,}".format(o.quantity or 0) }}</td>
+                <td class="text-center">
+                  {% if o.data_quality == "照合OK" %}
+                    <span class="badge-quality ok">照合OK</span>
+                  {% elif o.data_quality == "要確認" %}
+                    <span class="badge-quality warn">要確認</span>
+                  {% elif o.data_quality == "除外対象" %}
+                    <span class="badge-quality muted">除外対象</span>
+                  {% elif o.data_quality %}
+                    <span class="badge-quality ng">{{ o.data_quality }}</span>
+                  {% else %}
+                    <span class="badge-quality ng">未チェック</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" class="empty-row">出荷予定はありません</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dashboard-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <i class="bi bi-bar-chart"></i>
+          工程別負荷率
+        </h2>
+        <span class="panel-sub">今月モック</span>
+      </div>
+
+      <div class="capacity-chart-wrap">
+        <canvas id="capacityChart" height="150"></canvas>
+      </div>
+
+      <div class="chart-legend">
+        <span>
+          <i class="legend-dot legend-over"></i>
+          過負荷（80%+）
+        </span>
+        <span>
+          <i class="legend-dot legend-warn"></i>
+          注意（60-79%）
+        </span>
+        <span>
+          <i class="legend-dot legend-ok"></i>
+          正常
+        </span>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const updatedEl = document.getElementById('dashboardUpdated');
+  if (updatedEl) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    updatedEl.textContent = `${y}-${m}-${d} ${hh}:${mm}`;
+  }
+
+  const chartEl = document.getElementById('capacityChart');
+  if (!chartEl || typeof Chart === 'undefined') return;
+
+  if (window._seikanCapacityChart) {
+    window._seikanCapacityChart.destroy();
+    window._seikanCapacityChart = null;
+  }
+
+  const capacityData = {
+    labels: ['プレス', 'バレル', 'めっき', '外観検査', '出荷'],
+    values: [65, 42, 82, 38, 15]
+  };
+
+  const isDark =
+    document.documentElement.classList.contains('dark') ||
+    document.body.classList.contains('dark') ||
+    window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  const textColor = isDark ? 'rgba(255,255,255,0.62)' : 'rgba(15,23,42,0.62)';
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+
+  const barColors = capacityData.values.map(v => {
+    if (v >= 80) return '#F09595';
+    if (v >= 60) return '#FAC775';
+    return '#9FE1CB';
+  });
+
+  const borderColors = capacityData.values.map(v => {
+    if (v >= 80) return '#E24B4A';
+    if (v >= 60) return '#BA7517';
+    return '#1D9E75';
+  });
+
+  window._seikanCapacityChart = new Chart(chartEl.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: capacityData.labels,
+      datasets: [{
+        data: capacityData.values,
+        backgroundColor: barColors,
+        borderColor: borderColors,
+        borderWidth: 1.5,
+        borderRadius: 4,
+        maxBarThickness: 42
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 550,
+        easing: 'easeOutQuart'
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: context => `${context.parsed.y}%`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: textColor,
+            font: { size: 11 }
+          }
+        },
+        y: {
+          min: 0,
+          max: 100,
+          grid: { color: gridColor },
+          ticks: {
+            color: textColor,
+            font: { size: 11 },
+            callback: value => value + '%'
+          }
+        }
+      }
+    }
+  });
+
+  window.addEventListener('beforeunload', function () {
+    if (window._seikanCapacityChart) {
+      window._seikanCapacityChart.destroy();
+      window._seikanCapacityChart = null;
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block h1 %}集計レポート{% endblock %}
+{% block content %}
+<form method="get" class="card p-3 mb-3 row g-2 align-items-end">
+  <div class="col-auto">
+    <label class="form-label small mb-1">対象月</label>
+    <input type="month" class="form-control" name="month" value="{{ month or '' }}">
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1">月別タブの表示範囲</label>
+    <select name="monthly_scope" class="form-select">
+      <option value="all" {% if monthly_scope != 'filtered' %}selected{% endif %}>全期間推移を表示</option>
+      <option value="filtered" {% if monthly_scope == 'filtered' %}selected{% endif %}>対象月だけ表示</option>
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-primary">対象月フィルタ</button></div>
+  <div class="col-auto"><a class="btn btn-success" href="{{ url_for('reports.export_summary', month=month, monthly_scope=monthly_scope) }}">Excel出力</a></div>
+</form>
+<div class="alert alert-info small py-2">
+  客先別・品名別は対象月で絞り込みます。月別タブは既定では全期間推移を表示し、必要に応じて対象月だけに切り替えできます。
+</div>
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#monthly">月別</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#customer">客先別</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#product">品名別</button></li></ul>
+<div class="tab-content card p-3 border-top-0">
+  {% for id,title,data in [('monthly','月別集計',monthly),('customer','客先別集計',customer),('product','品名別集計',product)] %}
+  <div class="tab-pane fade {% if id=='monthly' %}show active{% endif %}" id="{{id}}"><h5>{{title}}</h5><canvas id="chart_{{id}}" height="90"></canvas><table class="table table-sm mt-3"><tr><th>項目</th><th>数量</th></tr>{% for k,v in data %}<tr><td>{{k}}</td><td>{{v}}</td></tr>{% endfor %}</table></div>
+  {% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const datasets = {
+  monthly: {{ monthly|tojson }}, customer: {{ customer|tojson }}, product: {{ product|tojson }}
+};
+Object.entries(datasets).forEach(([key, rows]) => drawSingleChart(`chart_${key}`, rows.map(r=>r[0]), rows.map(r=>r[1])));
+</script>
+{% endblock %}
