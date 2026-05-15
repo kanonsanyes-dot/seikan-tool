@@ -1,8 +1,9 @@
 from __future__ import annotations
 from pathlib import Path
+from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from sqlalchemy import asc, desc
-from database import db
+from database import db, commit_or_rollback
 from models import Order
 from services.csv_import_service import import_orders, ImportErrorDetail, add_missing_masters
 from services.quality_check_service import recheck_all
@@ -47,7 +48,7 @@ def add_missing():
     customers=request.form.getlist("customers")
     products=request.form.getlist("products")
     add_missing_masters(customers, products)
-    recheck_all(Order.query.all()); db.session.commit(); cache_service.clear()
+    recheck_all(Order.query.all()); commit_or_rollback(); cache_service.clear()
     flash("未登録マスタを追加し、品質チェックを再実行しました。", "success")
     return redirect(url_for("orders.list_orders"))
 
@@ -58,21 +59,26 @@ def edit_order(order_id):
         return jsonify({"error":"not found"}), 404
     if request.method=="GET":
         return jsonify({"order_id":order.order_id,"product_name":order.product_name,"process_product_name":order.process_product_name,"customer":order.customer,"ship_date":order.ship_date.isoformat(),"quantity":order.quantity,"status":order.status,"data_quality":order.data_quality})
-    order.product_name=request.form.get("product_name", order.product_name)
-    order.process_product_name=request.form.get("process_product_name")
-    order.customer=request.form.get("customer", order.customer)
-    order.ship_date=request.form.get("ship_date", order.ship_date)
-    order.quantity=int(request.form.get("quantity", order.quantity))
-    order.status=request.form.get("status", order.status)
-    recheck_all([order]); db.session.commit(); cache_service.clear()
-    flash("受注を更新しました。", "success")
+    try:
+        order.product_name=request.form.get("product_name", order.product_name)
+        order.process_product_name=request.form.get("process_product_name")
+        order.customer=request.form.get("customer", order.customer)
+        ship_date = request.form.get("ship_date")
+        if ship_date:
+            order.ship_date = datetime.fromisoformat(ship_date).date()
+        order.quantity=int(request.form.get("quantity", order.quantity))
+        order.status=request.form.get("status", order.status)
+        recheck_all([order]); commit_or_rollback(); cache_service.clear()
+        flash("受注を更新しました。", "success")
+    except Exception as e:
+        db.session.rollback(); flash(f"受注の更新に失敗しました: {e}", "danger")
     return redirect(url_for("orders.list_orders"))
 
 @orders_bp.route("/<int:order_id>/delete", methods=["POST"])
 def delete_order(order_id):
     order=db.session.get(Order, order_id)
     if order:
-        db.session.delete(order); db.session.commit(); cache_service.clear(); flash("受注を削除しました。", "success")
+        db.session.delete(order); commit_or_rollback(); cache_service.clear(); flash("受注を削除しました。", "success")
     return redirect(url_for("orders.list_orders"))
 
 @orders_bp.route("/export")
@@ -81,6 +87,6 @@ def export_orders():
 
 @orders_bp.route("/quality_check", methods=["POST"])
 def quality_check():
-    recheck_all(Order.query.all()); db.session.commit(); cache_service.clear()
+    recheck_all(Order.query.all()); commit_or_rollback(); cache_service.clear()
     flash("データ品質チェックを一括実行しました。", "success")
     return redirect(url_for("orders.list_orders"))

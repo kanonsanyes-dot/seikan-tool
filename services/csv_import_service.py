@@ -6,7 +6,7 @@ import chardet
 from dateutil import parser
 from datetime import date
 from werkzeug.utils import secure_filename
-from database import db
+from database import db, commit_or_rollback
 from models import Order, Customer, Product
 from services.quality_check_service import check_data_quality
 from services import cache_service
@@ -74,6 +74,9 @@ def import_orders(file_storage, upload_dir: Path):
     if not allowed_file(file_storage.filename):
         raise ImportErrorDetail("CSVファイルのみアップロードできます。")
     filename = secure_filename(file_storage.filename)
+    if not filename:
+        raise ImportErrorDetail("ファイル名が不正です。")
+    upload_dir.mkdir(parents=True, exist_ok=True)
     path = upload_dir / filename
     file_storage.save(path)
     if path.stat().st_size > 10 * 1024 * 1024:
@@ -135,7 +138,7 @@ def import_orders(file_storage, upload_dir: Path):
             success += 1
         except Exception as e:
             errors.append({"row": rownum, "message": str(e)})
-    db.session.commit()
+    commit_or_rollback()
     cache_service.clear()
     return {
         "success": success,
@@ -153,5 +156,5 @@ def add_missing_masters(customers, products):
     for name in products:
         if name and not Product.query.filter_by(product_name=name).first():
             db.session.add(Product(product_name=name, is_active=True))
-    db.session.commit()
+    commit_or_rollback()
     cache_service.clear()

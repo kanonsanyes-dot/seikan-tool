@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block h1 %}受注一覧{% endblock %}
+{%- block h1 -%}受注一覧{%- endblock -%}
 {% block content %}
 <form class="card p-3 mb-3 row g-2" method="get">
   <div class="col-md"><input class="form-control" name="customer" placeholder="客先" value="{{ f.get('customer','') }}"></div>

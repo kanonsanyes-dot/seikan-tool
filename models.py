@@ -1,10 +1,13 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from database import db
 
+def utc_now():
+    return datetime.now(timezone.utc)
+
 class TimestampMixin:
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
 
 class Order(db.Model, TimestampMixin):
     __tablename__ = "orders"
@@ -18,13 +21,14 @@ class Order(db.Model, TimestampMixin):
     data_quality = db.Column(db.String(50), default="未チェック")
     schedules = db.relationship("Schedule", backref="order", cascade="all, delete-orphan", lazy=True)
     progresses = db.relationship("ProcessProgress", backref="order", cascade="all, delete-orphan", lazy=True)
+    anomalies = db.relationship("Anomaly", backref="order", cascade="all, delete-orphan", lazy=True)
 
 class Customer(db.Model):
     __tablename__ = "customers"
     customer_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     customer_name = db.Column(db.String(255), nullable=False, unique=True)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now)
 
 class Product(db.Model):
     __tablename__ = "products"
@@ -32,10 +36,13 @@ class Product(db.Model):
     product_name = db.Column(db.String(255), nullable=False, unique=True)
     process_product_name = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now)
 
 class ProductProcessStandard(db.Model, TimestampMixin):
     __tablename__ = "product_process_standards"
+    __table_args__ = (
+        db.UniqueConstraint("product_name", "process_name", name="uq_standard_product_process"),
+    )
     standard_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     product_name = db.Column(db.String(255), nullable=False)
     process_product_name = db.Column(db.String(255))
@@ -49,6 +56,9 @@ class ProductProcessStandard(db.Model, TimestampMixin):
 
 class ProcessCapacity(db.Model, TimestampMixin):
     __tablename__ = "process_capacities"
+    __table_args__ = (
+        db.UniqueConstraint("process_name", "work_date", name="uq_capacity_proc_date"),
+    )
     capacity_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     process_name = db.Column(db.String(100), nullable=False)
     work_date = db.Column(db.Date, nullable=False)
@@ -91,6 +101,6 @@ class Schedule(db.Model, TimestampMixin):
 class Anomaly(db.Model, TimestampMixin):
     __tablename__ = "anomalies"
     anomaly_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    order_id = db.Column(db.Integer, nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey("orders.order_id"), nullable=False)
     status = db.Column(db.String(20), default="調査中")
     detail = db.Column(db.Text)
