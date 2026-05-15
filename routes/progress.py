@@ -1,6 +1,6 @@
 from __future__ import annotations
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from database import db
+from database import db, commit_or_rollback
 from models import ProcessProgress
 from services import cache_service
 from datetime import datetime
@@ -24,5 +24,5 @@ def update(id):
         p.actual_end_date=datetime.fromisoformat(actual).date() if actual else None
         p.department=request.form.get("department")
         p.remarks=request.form.get("remarks")
-        db.session.commit(); cache_service.clear(); flash("進捗を更新しました。", "success")
+        commit_or_rollback(); cache_service.clear(); flash("進捗を更新しました。", "success")
     return redirect(url_for("progress.index"))
