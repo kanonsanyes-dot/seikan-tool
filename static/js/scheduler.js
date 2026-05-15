@@ -7,11 +7,11 @@ const CONFIG = {
 };
 
 const PROCESS_COLORS = {
-  'プレス': { bg: '#EEEDFE', border: '#7F77DD', text: '#3C3489' },
-  'バレル': { bg: '#E1F5EE', border: '#1D9E75', text: '#085041' },
-  'めっき': { bg: '#E6F1FB', border: '#378ADD', text: '#0C447C' },
-  '外観検査': { bg: '#FAEEDA', border: '#BA7517', text: '#633806' },
-  '出荷': { bg: '#EAF3DE', border: '#639922', text: '#27500A' },
+  'プレス': { bg: '#AFA9EC', border: '#534AB7', text: '#3C3489' },
+  'バレル': { bg: '#F4C0D1', border: '#993556', text: '#72243E' },
+  'めっき': { bg: '#B5D4F4', border: '#185FA5', text: '#0C447C' },
+  '外観検査': { bg: '#FAC775', border: '#BA7517', text: '#633806' },
+  '出荷': { bg: '#C0DD97', border: '#3B6D11', text: '#27500A' },
 };
 
 const els = {
@@ -118,7 +118,7 @@ function renderRow(tl, order) {
   state.schedules
     .filter(s => s.order_id === order.order_id)
     .forEach(schedule => {
-      const color = PROCESS_COLORS[schedule.process_name] || { bg: '#e2e8f0', border: '#64748b', text: '#111827' };
+      const color = PROCESS_COLORS[schedule.process_name] || { bg: '#D3D1C7', border: '#5F5E5A', text: '#444441' };
       const card = document.createElement('div');
       card.className = `proc-card${schedule.locked ? ' locked' : ''}`;
       card.dataset.scheduleId = schedule.schedule_id;
