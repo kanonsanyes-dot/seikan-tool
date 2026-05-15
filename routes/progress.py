@@ -3,7 +3,6 @@ from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import db, commit_or_rollback
 from models import Order, ProcessProgress
-from services import cache_service
 
 progress_bp=Blueprint("progress", __name__, url_prefix="/progress")
 progress_api_bp=Blueprint("progress_api", __name__)
