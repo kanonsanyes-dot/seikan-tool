@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 import math
 from sqlalchemy import and_
-from database import db
+from database import db, commit_or_rollback
 from models import Order, ProductProcessStandard, Schedule, ProcessProgress, Anomaly
 from services import cache_service
 
@@ -38,7 +38,7 @@ def generate_schedule(order_id:int):
         prog=ProcessProgress(order_id=order_id, product_name=order.product_name, quantity=order.quantity, process_name=std.process_name, process_order=std.process_order, start_date=start_date, end_date=end_date, ship_date=order.ship_date, status="未着手")
         db.session.add(sched); db.session.add(prog); created.insert(0,sched)
         end_date = start_date - timedelta(days=1)
-    db.session.commit(); cache_service.clear()
+    commit_or_rollback(); cache_service.clear()
     return Schedule.query.filter_by(order_id=order_id).order_by(Schedule.process_order).all()
 
 def serialize_schedule(s):
@@ -70,7 +70,7 @@ def update_schedule(schedule_id, start_date, end_date, status=None, locked=None)
     p=ProcessProgress.query.filter_by(order_id=s.order_id, process_order=s.process_order).first()
     if p:
         p.start_date=s.start_date; p.end_date=s.end_date; p.status=s.status
-    db.session.commit(); cache_service.clear()
+    commit_or_rollback(); cache_service.clear()
     return s
 
 def snap(schedule_id, start_date, end_date, threshold=3):
@@ -90,6 +90,6 @@ def load_quality_flags(order_id):
     an=Anomaly.query.filter(Anomaly.order_id==order_id, Anomaly.status.in_(["未対策","調査中"])).first()
     if an:
         Schedule.query.filter_by(order_id=order_id).update({"has_quality_issue":True,"quality_issue_detail":an.detail})
-        db.session.commit(); cache_service.clear()
+        commit_or_rollback(); cache_service.clear()
         return {"has_issue":True,"issue_detail":an.detail}
     return {"has_issue":False}

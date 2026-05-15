@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent
 def create_app():
     cleanup_startup()
     app = Flask(__name__)
-    app.secret_key = "seikan-tool-dev-secret"
+    app.secret_key = os.environ.get("SEIKAN_SECRET_KEY", "seikan-tool-dev-secret")
     app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
     init_logging()
     init_db(app)
