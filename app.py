@@ -21,12 +21,13 @@ def create_app():
     from routes.reports import reports_bp
     from routes.masters import masters_bp
     from routes.scheduler import scheduler_bp
-    from routes.progress import progress_bp
+    from routes.progress import progress_bp, progress_api_bp
     app.register_blueprint(orders_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(masters_bp)
     app.register_blueprint(scheduler_bp)
     app.register_blueprint(progress_bp)
+    app.register_blueprint(progress_api_bp)
 
     from models import Order
     from sqlalchemy import func
@@ -43,6 +44,10 @@ def create_app():
         this_month_qty = db.session.query(func.coalesce(func.sum(Order.quantity), 0)).filter(Order.ship_date >= month_start, Order.ship_date < next_month).scalar()
         upcoming = Order.query.filter(Order.ship_date >= today, Order.ship_date <= today + timedelta(days=30)).order_by(Order.ship_date).limit(20).all()
         return render_template("dashboard.html", total=total, ok=ok, ng=ng, this_month_qty=this_month_qty, upcoming=upcoming, edition=EDITION)
+
+    @app.route("/progress/gantt")
+    def progress_gantt():
+        return render_template("progress_gantt.html")
 
     @app.context_processor
     def inject_current_path():

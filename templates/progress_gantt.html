@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}進捗ガントチャート - SeikanTool{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/progress_gantt.css') }}">{% endblock %}
+{%- block h1 -%}進捗ガントチャート{%- endblock -%}
+{% block content %}
+<section class="progress-gantt-page">
+  <div class="gantt-toolbar card p-3 mb-3">
+    <div>
+      <div class="gantt-title">品名×工程 進捗ガント</div>
+      <div class="gantt-range" id="ganttRangeLabel">日付範囲を読み込み中...</div>
+    </div>
+    <div class="gantt-actions">
+      <button class="btn btn-warm btn-sm" type="button" id="ganttPrev">前の60日</button>
+      <button class="btn btn-success-warm btn-sm" type="button" id="ganttToday">今日に戻る</button>
+      <button class="btn btn-warm btn-sm" type="button" id="ganttNext">次の60日</button>
+    </div>
+  </div>
+
+  <div class="gantt-flash d-none" id="ganttFlash" role="alert"></div>
+
+  <div class="gantt-shell card">
+    <div class="gantt-scroll" id="ganttScroll">
+      <div class="gantt-table" id="ganttTable" aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/progress_gantt.js') }}"></script>{% endblock %}

@@ -48,6 +48,10 @@
          href="{{ url_for('progress.index') }}">
         <i class="bi bi-kanban"></i><span>進捗表</span>
       </a>
+      <a class="sb-link {% if current_path == '/progress/gantt' %}sb-active{% endif %}"
+         href="{{ url_for('progress_gantt') }}">
+        <i class="bi bi-calendar-range"></i><span>ガントチャート</span>
+      </a>
     </nav>
 
     <div class="sb-divider"></div>
