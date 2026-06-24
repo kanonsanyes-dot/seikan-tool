@@ -25,6 +25,9 @@ def create_app():
     from routes.capacity import capacity_bp
     from routes.delay import delay_bp
     from routes.admin import admin_bp
+    from routes.work_orders import wo_bp
+    from routes.quality_issues import qi_bp
+    from routes.measurements import meas_bp
     app.register_blueprint(orders_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(masters_bp)
@@ -34,6 +37,9 @@ def create_app():
     app.register_blueprint(capacity_bp)
     app.register_blueprint(delay_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(wo_bp)
+    app.register_blueprint(qi_bp)
+    app.register_blueprint(meas_bp)
 
     from models import Order
     from sqlalchemy import func

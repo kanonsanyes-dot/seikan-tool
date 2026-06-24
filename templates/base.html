@@ -67,6 +67,23 @@
     </nav>
 
     <div class="sb-divider"></div>
+    <div class="sb-section-label">工程管理票</div>
+    <nav class="sb-nav">
+      <a class="sb-link {% if current_path.startswith('/work-orders') %}sb-active{% endif %}"
+         href="{{ url_for('work_orders.list_work_orders') }}">
+        <i class="bi bi-file-earmark-text-fill"></i><span>工程管理票</span>
+      </a>
+      <a class="sb-link {% if current_path.startswith('/quality-issues') %}sb-active{% endif %}"
+         href="{{ url_for('quality_issues.list_issues') }}">
+        <i class="bi bi-shield-exclamation"></i><span>品質異常</span>
+      </a>
+      <a class="sb-link {% if current_path.startswith('/measurements') %}sb-active{% endif %}"
+         href="{{ url_for('measurements.list_measurements') }}">
+        <i class="bi bi-rulers"></i><span>測定記録</span>
+      </a>
+    </nav>
+
+    <div class="sb-divider"></div>
     <div class="sb-section-label">MASTER</div>
     <nav class="sb-nav sb-nav-master">
       <a class="sb-link {% if current_path == '/masters/customers' %}sb-active{% endif %}"

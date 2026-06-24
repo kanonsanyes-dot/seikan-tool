@@ -14,7 +14,17 @@
 <table class="table table-sm table-hover align-middle">
 <tr><th>ID</th><th>品名</th><th>工程品名</th><th>出荷先</th><th>出荷日</th><th>数量</th><th>ステータス</th><th>品質</th><th>操作</th></tr>
 {% for o in orders %}
-<tr data-order-id="{{ o.order_id }}"><td>{{ o.order_id }}</td><td>{{ o.product_name }}</td><td>{{ o.process_product_name or '' }}</td><td>{{ o.customer }}</td><td>{{ o.ship_date }}</td><td>{{ o.quantity }}</td><td>{{ o.status }}</td><td><span class="badge {{ 'text-bg-success' if o.data_quality=='照合OK' else ('text-bg-warning' if o.data_quality=='要確認' else 'text-bg-danger') }}">{{ o.data_quality }}</span></td><td><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit{{o.order_id}}">編集</button><form method="post" action="{{ url_for('scheduler.generate', order_id=o.order_id) }}" class="d-inline"><button class="btn btn-sm btn-outline-info">工程生成</button></form></td></tr>
+<tr data-order-id="{{ o.order_id }}"><td>{{ o.order_id }}</td><td>{{ o.product_name }}</td><td>{{ o.process_product_name or '' }}</td><td>{{ o.customer }}</td><td>{{ o.ship_date }}</td><td>{{ o.quantity }}</td><td>{{ o.status }}</td><td><span class="badge {{ 'text-bg-success' if o.data_quality=='照合OK' else ('text-bg-warning' if o.data_quality=='要確認' else 'text-bg-danger') }}">{{ o.data_quality }}</span></td><td class="text-nowrap">
+  <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit{{o.order_id}}">編集</button>
+  <form method="post" action="{{ url_for('scheduler.generate', order_id=o.order_id) }}" class="d-inline"><button class="btn btn-sm btn-outline-info">工程生成</button></form>
+  {% if o.work_orders %}
+    <a href="{{ url_for('work_orders.detail', wo_id=o.work_orders[0].work_order_id) }}" class="btn btn-sm btn-outline-success">管理票</a>
+  {% else %}
+    <form method="post" action="{{ url_for('work_orders.generate_from_order_view', order_id=o.order_id) }}" class="d-inline">
+      <button class="btn btn-sm btn-outline-secondary">管理票生成</button>
+    </form>
+  {% endif %}
+</td></tr>
 <div class="modal fade" id="edit{{o.order_id}}"><div class="modal-dialog"><div class="modal-content"><form method="post" action="{{ url_for('orders.edit_order', order_id=o.order_id) }}"><div class="modal-header"><h5>受注編集 #{{o.order_id}}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
 <input class="form-control mb-2" name="product_name" value="{{ o.product_name }}"><input class="form-control mb-2" name="process_product_name" value="{{ o.process_product_name or '' }}"><input class="form-control mb-2" name="customer" value="{{ o.customer }}"><input class="form-control mb-2" type="date" name="ship_date" value="{{ o.ship_date }}"><input class="form-control mb-2" type="number" name="quantity" value="{{ o.quantity }}"><select class="form-select" name="status">{% for s in ['受注中','完了','調整中'] %}<option {% if o.status==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select>
 </div><div class="modal-footer"><button class="btn btn-primary">保存</button></div></form></div></div></div>

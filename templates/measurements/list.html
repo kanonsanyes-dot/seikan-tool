@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}測定記録一覧 - SeikanTool{% endblock %}
+{% block h1 %}測定記録一覧{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <span class="text-muted small">{{ items|length }} 件　{% if ng_count > 0 %}<span class="badge bg-danger">NG {{ ng_count }}件</span>{% endif %}</span>
+  <a href="{{ url_for('measurements.new_measurement') }}" class="btn btn-sm btn-info text-white">
+    <i class="bi bi-plus-lg me-1"></i>新規登録
+  </a>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="品名 / ロット / 測定項目">
+      </div>
+      <div class="col-sm-2">
+        <select name="result" class="form-select form-select-sm">
+          <option value="">全結果</option>
+          {% for r in result_list %}
+          <option value="{{ r }}" {% if r == result %}selected{% endif %}>{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-sm-2">
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-primary">検索</button>
+        <a href="{{ url_for('measurements.list_measurements') }}" class="btn btn-sm btn-outline-secondary">クリア</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>測定日</th><th>品名</th><th>ロット</th><th>測定項目</th>
+          <th>結果</th><th>検査者</th><th>ファイル所在</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in items %}
+        <tr class="{% if m.result == 'NG' %}table-danger{% endif %}">
+          <td class="small">{{ m.measured_date or '-' }}</td>
+          <td>{{ m.product_name }}</td>
+          <td class="small">{{ m.lot_no or '-' }}</td>
+          <td>{{ m.measurement_item or '-' }}</td>
+          <td>
+            <span class="badge bg-{% if m.result == 'OK' %}success{% elif m.result == 'NG' %}danger{% else %}warning text-dark{% endif %}">
+              {{ m.result or '-' }}
+            </span>
+          </td>
+          <td class="small">{{ m.inspector or '-' }}</td>
+          <td class="small text-truncate" style="max-width:180px;">
+            {% if m.file_path %}<span title="{{ m.file_path }}">{{ m.file_path }}</span>
+            {% elif m.storage_note %}{{ m.storage_note[:50] }}
+            {% else %}-{% endif %}
+          </td>
+          <td><a href="{{ url_for('measurements.detail', meas_id=m.measurement_id) }}" class="btn btn-sm btn-outline-secondary py-0 px-2">詳細</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">測定記録がありません</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

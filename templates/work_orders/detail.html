@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}{{ wo.work_order_no }} - SeikanTool{% endblock %}
+{% block h1 %}工程管理票 詳細{% endblock %}
+
+{% block content %}
+{# ヘッダーバー #}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <a href="{{ url_for('work_orders.list_work_orders') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>一覧
+  </a>
+  <a href="{{ url_for('work_orders.edit_work_order', wo_id=wo.work_order_id) }}" class="btn btn-sm btn-outline-primary">
+    <i class="bi bi-pencil me-1"></i>編集
+  </a>
+  <a href="{{ url_for('work_orders.actuals', wo_id=wo.work_order_id) }}" class="btn btn-sm btn-primary">
+    <i class="bi bi-clipboard-check me-1"></i>実績入力
+  </a>
+  <a href="{{ url_for('work_orders.print_view', wo_id=wo.work_order_id) }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+    <i class="bi bi-printer me-1"></i>印刷
+  </a>
+  <a href="{{ url_for('work_orders.excel_export', wo_id=wo.work_order_id) }}" class="btn btn-sm btn-outline-success">
+    <i class="bi bi-file-earmark-excel me-1"></i>Excel
+  </a>
+  <a href="{{ url_for('quality_issues.new_issue') }}?work_order_id={{ wo.work_order_id }}" class="btn btn-sm btn-outline-danger">
+    <i class="bi bi-exclamation-triangle me-1"></i>品質異常登録
+  </a>
+  <a href="{{ url_for('measurements.new_measurement') }}?work_order_id={{ wo.work_order_id }}" class="btn btn-sm btn-outline-info">
+    <i class="bi bi-rulers me-1"></i>測定記録登録
+  </a>
+</div>
+
+{# 基本情報 #}
+{% set overdue = wo.ship_date and wo.ship_date < today and wo.status not in ['完了','停止','取消'] %}
+<div class="card mb-3 {% if overdue %}border-danger{% endif %}">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-4">
+        <div class="text-muted small">管理番号</div>
+        <div class="fw-bold fs-5">{{ wo.work_order_no }}</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="text-muted small">状態</div>
+        {% set sc = {'未着手':'secondary','進行中':'primary','完了':'success','保留':'warning','停止':'dark','取消':'dark'} %}
+        <span class="badge bg-{{ sc.get(wo.status,'secondary') }} fs-6">{{ wo.status }}</span>
+      </div>
+      <div class="col-sm-4">
+        <div class="text-muted small">優先度</div>
+        {% set pc = {'緊急':'danger','高':'warning','通常':'secondary','低':'light'} %}
+        <span class="badge bg-{{ pc.get(wo.priority,'secondary') }}">{{ wo.priority }}</span>
+      </div>
+      <div class="col-sm-4">
+        <div class="text-muted small">品名</div>
+        <div class="fw-semibold">{{ wo.product_name }}</div>
+        {% if wo.process_product_name %}<div class="text-muted small">{{ wo.process_product_name }}</div>{% endif %}
+      </div>
+      <div class="col-sm-4">
+        <div class="text-muted small">顧客</div>
+        <div>{{ wo.customer or '-' }}</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="text-muted small">ロット</div>
+        <div>{{ wo.lot_no or '-' }}</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="text-muted small">数量</div>
+        <div class="fw-bold">{{ "{:,}".format(wo.quantity) }} pcs</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="text-muted small">納期</div>
+        <div class="{% if overdue %}text-danger fw-bold{% endif %}">
+          {{ wo.ship_date.strftime('%Y-%m-%d') if wo.ship_date else '-' }}
+          {% if overdue %} <span class="badge bg-danger">超過</span>{% endif %}
+        </div>
+      </div>
+      {% if wo.order_id %}
+      <div class="col-sm-4">
+        <div class="text-muted small">受注リンク</div>
+        <a href="{{ url_for('orders.list_orders') }}?q={{ wo.product_name }}" class="small">#{{ wo.order_id }}</a>
+      </div>
+      {% endif %}
+      {% if wo.remarks %}
+      <div class="col-12">
+        <div class="text-muted small">備考</div>
+        <div class="small">{{ wo.remarks }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# 工程明細 #}
+<div class="card mb-3">
+  <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-list-task me-1"></i>工程明細</span>
+    <span class="badge bg-secondary">{{ wo.processes|length }} 工程</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>工程名</th>
+          <th>計画開始</th>
+          <th>計画終了</th>
+          <th>実績開始</th>
+          <th>実績終了</th>
+          <th class="text-end">良品数</th>
+          <th class="text-end">不良数</th>
+          <th class="text-end">歩留%</th>
+          <th>状態</th>
+          <th>作業者</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in wo.processes %}
+        {% set yr = (p.good_quantity / p.input_quantity * 100)|round(1) if p.input_quantity else None %}
+        <tr>
+          <td>{{ p.process_order }}</td>
+          <td class="fw-semibold">{{ p.process_name }}</td>
+          <td class="small">{{ p.planned_start_date or '-' }}</td>
+          <td class="small">{{ p.planned_end_date or '-' }}</td>
+          <td class="small">{{ p.actual_start_date or '-' }}</td>
+          <td class="small">{{ p.actual_end_date or '-' }}</td>
+          <td class="text-end">{{ p.good_quantity }}</td>
+          <td class="text-end {% if p.defect_quantity > 0 %}text-danger fw-bold{% endif %}">{{ p.defect_quantity }}</td>
+          <td class="text-end">{% if yr is not none %}{{ yr }}%{% else %}-{% endif %}</td>
+          <td>
+            {% set sc = {'未着手':'secondary','進行中':'primary','完了':'success','保留':'warning','異常あり':'danger'} %}
+            <span class="badge bg-{{ sc.get(p.status,'secondary') }}">{{ p.status }}</span>
+          </td>
+          <td class="small">{{ p.operator or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="11" class="text-center text-muted py-3">工程明細がありません</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# 品質異常 #}
+{% if wo.quality_issues %}
+<div class="card mb-3">
+  <div class="card-header fw-bold text-danger">
+    <i class="bi bi-exclamation-triangle me-1"></i>品質異常 ({{ wo.quality_issues|length }})
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>異常番号</th><th>発生日</th><th>種別</th><th>内容</th><th>担当</th><th>状態</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for qi in wo.quality_issues %}
+        <tr>
+          <td>{{ qi.issue_no }}</td>
+          <td class="small">{{ qi.occurred_date or '-' }}</td>
+          <td>{{ qi.issue_type or '-' }}</td>
+          <td class="small">{{ (qi.detail or '')[:60] }}{% if qi.detail and qi.detail|length > 60 %}…{% endif %}</td>
+          <td class="small">{{ qi.owner or '-' }}</td>
+          <td><span class="badge bg-{% if qi.status == '完了' %}success{% else %}warning text-dark{% endif %}">{{ qi.status }}</span></td>
+          <td><a href="{{ url_for('quality_issues.detail', issue_id=qi.issue_id) }}" class="btn btn-xs btn-sm btn-outline-secondary py-0 px-2">詳細</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# 測定記録 #}
+{% if wo.measurements %}
+<div class="card mb-3">
+  <div class="card-header fw-bold text-info">
+    <i class="bi bi-rulers me-1"></i>測定記録 ({{ wo.measurements|length }})
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>測定日</th><th>測定項目</th><th>結果</th><th>検査者</th><th>ファイル所在</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for m in wo.measurements %}
+        <tr>
+          <td class="small">{{ m.measured_date or '-' }}</td>
+          <td>{{ m.measurement_item or '-' }}</td>
+          <td>
+            <span class="badge bg-{% if m.result == 'OK' %}success{% elif m.result == 'NG' %}danger{% else %}warning text-dark{% endif %}">
+              {{ m.result or '-' }}
+            </span>
+          </td>
+          <td class="small">{{ m.inspector or '-' }}</td>
+          <td class="small text-truncate" style="max-width:200px;">{{ m.file_path or m.storage_note or '-' }}</td>
+          <td><a href="{{ url_for('measurements.detail', meas_id=m.measurement_id) }}" class="btn btn-xs btn-sm btn-outline-secondary py-0 px-2">詳細</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

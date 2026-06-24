@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}品質異常一覧 - SeikanTool{% endblock %}
+{% block h1 %}品質異常一覧{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-sm-3">
+    <div class="card text-center">
+      <div class="card-body py-2">
+        <div class="text-muted small">未完了</div>
+        <div class="fs-4 fw-bold {% if open_count > 0 %}text-danger{% endif %}">{{ open_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card text-center">
+      <div class="card-body py-2">
+        <div class="text-muted small">期限超過</div>
+        <div class="fs-4 fw-bold {% if overdue > 0 %}text-danger{% endif %}">{{ overdue }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <span class="text-muted small">{{ items|length }} 件</span>
+  <a href="{{ url_for('quality_issues.new_issue') }}" class="btn btn-sm btn-danger">
+    <i class="bi bi-plus-lg me-1"></i>新規登録
+  </a>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-4">
+        <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="品名 / 工程 / ロット / 番号">
+      </div>
+      <div class="col-sm-3">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">全状態</option>
+          {% for s in status_list %}
+          <option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-primary">検索</button>
+        <a href="{{ url_for('quality_issues.list_issues') }}" class="btn btn-sm btn-outline-secondary">クリア</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>異常番号</th><th>発生日</th><th>品名</th><th>工程</th><th>ロット</th>
+          <th>種別</th><th>担当</th><th>期限</th><th>状態</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for qi in items %}
+        {% set expired = qi.due_date and qi.due_date < today and qi.status != '完了' %}
+        <tr class="{% if expired %}table-danger{% endif %}">
+          <td><a href="{{ url_for('quality_issues.detail', issue_id=qi.issue_id) }}" class="fw-bold text-decoration-none">{{ qi.issue_no }}</a></td>
+          <td class="small">{{ qi.occurred_date or '-' }}</td>
+          <td>{{ qi.product_name }}</td>
+          <td class="small">{{ qi.process_name or '-' }}</td>
+          <td class="small">{{ qi.lot_no or '-' }}</td>
+          <td class="small">{{ qi.issue_type or '-' }}</td>
+          <td class="small">{{ qi.owner or '-' }}</td>
+          <td class="small {% if expired %}text-danger fw-bold{% endif %}">
+            {{ qi.due_date or '-' }}{% if expired %} ⚠{% endif %}
+          </td>
+          <td>
+            {% set sc = {'完了':'success','調査中':'warning text-dark','対策中':'primary','確認待ち':'info text-dark'} %}
+            <span class="badge bg-{{ sc.get(qi.status,'secondary') }}">{{ qi.status }}</span>
+          </td>
+          <td><a href="{{ url_for('quality_issues.detail', issue_id=qi.issue_id) }}" class="btn btn-sm btn-outline-secondary py-0 px-2">詳細</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="text-center text-muted py-4">品質異常がありません</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

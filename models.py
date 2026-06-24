@@ -22,6 +22,7 @@ class Order(db.Model, TimestampMixin):
     schedules = db.relationship("Schedule", backref="order", cascade="all, delete-orphan", lazy=True)
     progresses = db.relationship("ProcessProgress", backref="order", cascade="all, delete-orphan", lazy=True)
     anomalies = db.relationship("Anomaly", backref="order", cascade="all, delete-orphan", lazy=True)
+    work_orders = db.relationship("WorkOrder", backref="order_ref", lazy=True)
 
 class Customer(db.Model):
     __tablename__ = "customers"
@@ -104,3 +105,86 @@ class Anomaly(db.Model, TimestampMixin):
     order_id = db.Column(db.Integer, db.ForeignKey("orders.order_id"), nullable=False)
     status = db.Column(db.String(20), default="調査中")
     detail = db.Column(db.Text)
+
+
+# ─── ミニERP 拡張モデル ──────────────────────────────────
+
+class WorkOrder(db.Model, TimestampMixin):
+    __tablename__ = "work_orders"
+    work_order_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    work_order_no = db.Column(db.String(50), unique=True, nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey("orders.order_id"), nullable=True)
+    product_name = db.Column(db.String(255), nullable=False)
+    process_product_name = db.Column(db.String(255))
+    customer = db.Column(db.String(255))
+    lot_no = db.Column(db.String(100))
+    quantity = db.Column(db.Integer, nullable=False, default=0)
+    ship_date = db.Column(db.Date)
+    status = db.Column(db.String(20), default="未着手")
+    priority = db.Column(db.String(20), default="通常")
+    remarks = db.Column(db.Text)
+    processes = db.relationship("WorkOrderProcess", backref="work_order",
+                                cascade="all, delete-orphan", lazy=True,
+                                order_by="WorkOrderProcess.process_order")
+    quality_issues = db.relationship("QualityIssue", backref="work_order", lazy=True)
+    measurements = db.relationship("MeasurementRecord", backref="work_order", lazy=True)
+
+
+class WorkOrderProcess(db.Model, TimestampMixin):
+    __tablename__ = "work_order_processes"
+    process_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    work_order_id = db.Column(db.Integer, db.ForeignKey("work_orders.work_order_id"), nullable=False)
+    process_name = db.Column(db.String(100), nullable=False)
+    process_order = db.Column(db.Integer, nullable=False)
+    planned_start_date = db.Column(db.Date)
+    planned_end_date = db.Column(db.Date)
+    actual_start_date = db.Column(db.Date)
+    actual_end_date = db.Column(db.Date)
+    planned_quantity = db.Column(db.Integer, default=0)
+    input_quantity = db.Column(db.Integer, default=0)
+    good_quantity = db.Column(db.Integer, default=0)
+    defect_quantity = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(20), default="未着手")
+    operator = db.Column(db.String(100))
+    equipment = db.Column(db.String(100))
+    remarks = db.Column(db.Text)
+    quality_issues = db.relationship("QualityIssue", backref="work_order_process", lazy=True)
+    measurements = db.relationship("MeasurementRecord", backref="work_order_process", lazy=True)
+
+
+class QualityIssue(db.Model, TimestampMixin):
+    __tablename__ = "quality_issues"
+    issue_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    work_order_id = db.Column(db.Integer, db.ForeignKey("work_orders.work_order_id"), nullable=True)
+    process_id = db.Column(db.Integer, db.ForeignKey("work_order_processes.process_id"), nullable=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("orders.order_id"), nullable=True)
+    issue_no = db.Column(db.String(50), unique=True)
+    occurred_date = db.Column(db.Date)
+    process_name = db.Column(db.String(100))
+    product_name = db.Column(db.String(255))
+    lot_no = db.Column(db.String(100))
+    issue_type = db.Column(db.String(100))
+    detail = db.Column(db.Text)
+    temporary_action = db.Column(db.Text)
+    root_cause = db.Column(db.Text)
+    corrective_action = db.Column(db.Text)
+    owner = db.Column(db.String(100))
+    due_date = db.Column(db.Date)
+    close_date = db.Column(db.Date)
+    status = db.Column(db.String(20), default="調査中")
+
+
+class MeasurementRecord(db.Model, TimestampMixin):
+    __tablename__ = "measurement_records"
+    measurement_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    work_order_id = db.Column(db.Integer, db.ForeignKey("work_orders.work_order_id"), nullable=True)
+    process_id = db.Column(db.Integer, db.ForeignKey("work_order_processes.process_id"), nullable=True)
+    product_name = db.Column(db.String(255), nullable=False)
+    lot_no = db.Column(db.String(100))
+    measured_date = db.Column(db.Date)
+    measurement_item = db.Column(db.String(255))
+    result = db.Column(db.String(50))
+    file_path = db.Column(db.String(1000))
+    storage_note = db.Column(db.Text)
+    inspector = db.Column(db.String(100))
+    remarks = db.Column(db.Text)
