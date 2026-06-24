@@ -52,6 +52,10 @@
          href="{{ url_for('progress_gantt') }}">
         <i class="bi bi-calendar-range"></i><span>ガントチャート</span>
       </a>
+      <a class="sb-link {% if current_path.startswith('/capacity') %}sb-active{% endif %}"
+         href="{{ url_for('capacity.index') }}">
+        <i class="bi bi-speedometer"></i><span>負荷確認</span>
+      </a>
     </nav>
 
     <div class="sb-divider"></div>

@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}工程別負荷確認 - SeikanTool{% endblock %}
+{%- block h1 -%}工程別負荷確認{%- endblock -%}
+
+{% block content %}
+<div class="capacity-page">
+
+  {# 月ナビ #}
+  <div class="capacity-nav card p-3 mb-3 d-flex flex-row align-items-center gap-3">
+    <a href="{{ url_for('capacity.index', year=prev_year, month=prev_month) }}"
+       class="btn btn-warm btn-sm"><i class="bi bi-chevron-left"></i> 前月</a>
+    <span class="capacity-nav-label fw-bold">{{ year }}年{{ month }}月</span>
+    <a href="{{ url_for('capacity.index', year=next_year, month=next_month) }}"
+       class="btn btn-warm btn-sm">翌月 <i class="bi bi-chevron-right"></i></a>
+    <a href="{{ url_for('capacity.index') }}" class="btn btn-outline-secondary btn-sm ms-auto">今月</a>
+  </div>
+
+  {# サマリKPI #}
+  <div class="kpi-grid mb-3">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-label"><i class="bi bi-box-seam"></i><span>対象受注</span></div>
+      <div class="kpi-value">{{ summary.total_orders }}</div>
+      <div class="kpi-sub">件</div>
+    </div>
+    <div class="kpi-card kpi-purple">
+      <div class="kpi-label"><i class="bi bi-truck"></i><span>合計数量</span></div>
+      <div class="kpi-value">{{ "{:,}".format(summary.total_quantity) }}</div>
+      <div class="kpi-sub">pcs</div>
+    </div>
+    <div class="kpi-card {% if summary.bottleneck %}kpi-red kpi-alert{% else %}kpi-green{% endif %}">
+      <div class="kpi-label"><i class="bi bi-exclamation-triangle"></i><span>ボトルネック</span></div>
+      <div class="kpi-value" style="font-size:1.2rem;">{{ summary.bottleneck or "なし" }}</div>
+      <div class="kpi-sub">{% if summary.bottleneck %}要調整{% else %}問題なし{% endif %}</div>
+    </div>
+    <div class="kpi-card {% if summary.critical_processes %}kpi-red{% else %}kpi-green{% endif %}">
+      <div class="kpi-label"><i class="bi bi-fire"></i><span>過負荷工程</span></div>
+      <div class="kpi-value">{{ summary.critical_processes | length }}</div>
+      <div class="kpi-sub">工程</div>
+    </div>
+  </div>
+
+  {% if not summary.process_loads %}
+  <div class="card p-4 text-center text-muted">
+    <p class="mb-1"><i class="bi bi-info-circle fs-4"></i></p>
+    <p class="mb-0">この月の対象受注がないか、品名工程標準マスタが未登録です。</p>
+    <p class="mt-2">
+      <a href="{{ url_for('masters.standards') }}">工程標準マスタを登録する →</a>
+    </p>
+  </div>
+  {% else %}
+
+  <div class="row g-3">
+    {# 工程別負荷率グラフ #}
+    <div class="col-lg-6">
+      <div class="card p-3 h-100">
+        <div class="panel-header mb-2">
+          <h2 class="panel-title"><i class="bi bi-bar-chart"></i> 工程別負荷率</h2>
+        </div>
+        <div style="position:relative;height:220px;">
+          <canvas id="loadChart"></canvas>
+        </div>
+        <div class="chart-legend mt-2">
+          <span><i class="legend-dot" style="background:#E24B4A;"></i>要調整（120%+）</span>
+          <span><i class="legend-dot" style="background:#F09595;"></i>残業要（100〜120%）</span>
+          <span><i class="legend-dot" style="background:#FAC775;"></i>注意（80〜100%）</span>
+          <span><i class="legend-dot" style="background:#9FE1CB;"></i>余裕あり</span>
+        </div>
+      </div>
+    </div>
+
+    {# 工程別詳細テーブル #}
+    <div class="col-lg-6">
+      <div class="card p-3 h-100">
+        <div class="panel-header mb-2">
+          <h2 class="panel-title"><i class="bi bi-table"></i> 工程別詳細</h2>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>工程名</th>
+                <th class="text-end">必要時間</th>
+                <th class="text-end">稼働時間</th>
+                <th class="text-end">負荷率</th>
+                <th class="text-end">残業必要</th>
+                <th class="text-center">判定</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in summary.process_loads %}
+              <tr>
+                <td>{{ p.process_name }}</td>
+                <td class="text-end">{{ p.required_hours }}h</td>
+                <td class="text-end">{{ p.available_hours }}h</td>
+                <td class="text-end fw-bold
+                  {% if p.status == 'critical' %}text-danger
+                  {% elif p.status == 'overtime' %}text-warning
+                  {% elif p.status == 'caution' %}text-warning
+                  {% else %}text-success{% endif %}">
+                  {{ p.load_rate }}%
+                </td>
+                <td class="text-end">
+                  {% if p.required_overtime > 0 %}
+                    <span class="text-danger">+{{ p.required_overtime }}h</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if p.status == 'critical' %}
+                    <span class="badge bg-danger">要調整</span>
+                  {% elif p.status == 'overtime' %}
+                    <span class="badge bg-warning text-dark">残業要</span>
+                  {% elif p.status == 'caution' %}
+                    <span class="badge bg-warning text-dark">注意</span>
+                  {% else %}
+                    <span class="badge bg-success">余裕あり</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# 残業シミュレーション #}
+  <div class="card p-3 mt-3">
+    <div class="panel-header mb-3">
+      <h2 class="panel-title"><i class="bi bi-clock-history"></i> 残業シミュレーション</h2>
+      <span class="panel-sub text-muted small">工程キャパマスタの残業可能時間との比較</span>
+    </div>
+    <div class="row g-3">
+      {% for p in summary.process_loads %}
+      {% if p.required_overtime > 0 %}
+      <div class="col-md-4">
+        <div class="card p-3 border {% if p.can_cover_with_overtime %}border-warning{% else %}border-danger{% endif %}">
+          <div class="fw-bold mb-1">{{ p.process_name }}</div>
+          <div class="small text-muted mb-2">必要工数: {{ p.required_hours }}h ／ 通常稼働: {{ p.available_hours }}h</div>
+          <div class="mb-1">
+            <span class="text-danger fw-bold">不足: {{ p.required_overtime }}h</span>
+          </div>
+          <div class="small">
+            {% if p.can_cover_with_overtime %}
+              <span class="text-success"><i class="bi bi-check-circle"></i> 残業枠内で対応可能（残業枠: {{ p.overtime_hours }}h）</span>
+            {% else %}
+              <span class="text-danger"><i class="bi bi-x-circle"></i> 残業枠でも不足（残業枠: {{ p.overtime_hours }}h）</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="col-12 text-muted">すべての工程が通常稼働で対応可能です。</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const loads = {{ summary.process_loads | map(attribute='load_rate') | list | tojson }};
+  const labels = {{ summary.process_loads | map(attribute='process_name') | list | tojson }};
+  const statuses = {{ summary.process_loads | map(attribute='status') | list | tojson }};
+
+  function barColor(status) {
+    if (status === 'critical') return '#E24B4A';
+    if (status === 'overtime') return '#F09595';
+    if (status === 'caution') return '#FAC775';
+    return '#9FE1CB';
+  }
+
+  const chartEl = document.getElementById('loadChart');
+  if (!chartEl || !loads.length) return;
+
+  new Chart(chartEl.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: loads,
+        backgroundColor: statuses.map(barColor),
+        borderRadius: 4,
+        maxBarThickness: 48,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y + '%' } },
+        annotation: {
+          annotations: {
+            line100: { type: 'line', yMin: 100, yMax: 100, borderColor: '#E24B4A', borderWidth: 2, borderDash: [4, 4] },
+            line80: { type: 'line', yMin: 80, yMax: 80, borderColor: '#FAC775', borderWidth: 1.5, borderDash: [4, 4] },
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: {
+          min: 0,
+          suggestedMax: Math.max(100, ...loads) + 10,
+          ticks: { callback: v => v + '%', font: { size: 11 } }
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endblock %}

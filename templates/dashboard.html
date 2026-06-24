@@ -143,26 +143,20 @@
           <i class="bi bi-bar-chart"></i>
           工程別負荷率
         </h2>
-        <span class="panel-sub">今月モック</span>
+        <a href="{{ url_for('capacity.index') }}" class="panel-sub text-decoration-none" style="font-size:.8rem;">詳細 →</a>
       </div>
 
       <div class="capacity-chart-wrap">
         <canvas id="capacityChart" height="150"></canvas>
       </div>
+      <p id="capacityNoData" class="text-muted text-center small d-none">
+        工程標準マスタを登録すると負荷率が表示されます。
+      </p>
 
       <div class="chart-legend">
-        <span>
-          <i class="legend-dot legend-over"></i>
-          過負荷（80%+）
-        </span>
-        <span>
-          <i class="legend-dot legend-warn"></i>
-          注意（60-79%）
-        </span>
-        <span>
-          <i class="legend-dot legend-ok"></i>
-          正常
-        </span>
+        <span><i class="legend-dot legend-over"></i>過負荷（100%+）</span>
+        <span><i class="legend-dot legend-warn"></i>注意（80〜100%）</span>
+        <span><i class="legend-dot legend-ok"></i>余裕あり</span>
       </div>
     </div>
   </div>
@@ -185,6 +179,7 @@
   }
 
   const chartEl = document.getElementById('capacityChart');
+  const noDataEl = document.getElementById('capacityNoData');
   if (!chartEl || typeof Chart === 'undefined') return;
 
   if (window._seikanCapacityChart) {
@@ -192,75 +187,63 @@
     window._seikanCapacityChart = null;
   }
 
-  const capacityData = {
-    labels: ['プレス', 'バレル', 'めっき', '外観検査', '出荷'],
-    values: [65, 42, 82, 38, 15]
-  };
-
   const textColor = 'rgba(99, 56, 6, 0.7)';
   const gridColor = 'rgba(240, 217, 184, 0.6)';
 
-  const barColors = capacityData.values.map(v => {
-    if (v >= 80) return '#F09595';
-    if (v >= 60) return '#FAC775';
+  function statusColor(status) {
+    if (status === 'critical') return '#E24B4A';
+    if (status === 'overtime') return '#F09595';
+    if (status === 'caution') return '#FAC775';
     return '#9FE1CB';
-  });
+  }
 
-  const borderColors = capacityData.values.map(v => {
-    if (v >= 80) return '#E24B4A';
-    if (v >= 60) return '#BA7517';
-    return '#1D9E75';
-  });
-
-  window._seikanCapacityChart = new Chart(chartEl.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: capacityData.labels,
-      datasets: [{
-        data: capacityData.values,
-        backgroundColor: barColors,
-        borderColor: borderColors,
-        borderWidth: 1.5,
-        borderRadius: 4,
-        maxBarThickness: 42
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {
-        duration: 550,
-        easing: 'easeOutQuart'
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: context => `${context.parsed.y}%`
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: textColor,
-            font: { size: 11 }
-          }
-        },
-        y: {
-          min: 0,
-          max: 100,
-          grid: { color: gridColor },
-          ticks: {
-            color: textColor,
-            font: { size: 11 },
-            callback: value => value + '%'
-          }
-        }
+  fetch('/capacity/api/summary')
+    .then(r => r.json())
+    .then(data => {
+      const loads = data.process_loads || [];
+      if (!loads.length) {
+        chartEl.classList.add('d-none');
+        if (noDataEl) noDataEl.classList.remove('d-none');
+        return;
       }
-    }
-  });
+      const labels = loads.map(p => p.process_name);
+      const values = loads.map(p => p.load_rate);
+      const colors = loads.map(p => statusColor(p.status));
+
+      window._seikanCapacityChart = new Chart(chartEl.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderRadius: 4,
+            maxBarThickness: 42
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 550, easing: 'easeOutQuart' },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ctx.parsed.y + '%' } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11 } } },
+            y: {
+              min: 0,
+              suggestedMax: Math.max(100, ...values) + 10,
+              grid: { color: gridColor },
+              ticks: { color: textColor, font: { size: 11 }, callback: v => v + '%' }
+            }
+          }
+        }
+      });
+    })
+    .catch(() => {
+      if (noDataEl) noDataEl.classList.remove('d-none');
+    });
 
   window.addEventListener('beforeunload', function () {
     if (window._seikanCapacityChart) {

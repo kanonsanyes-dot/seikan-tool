@@ -22,12 +22,14 @@ def create_app():
     from routes.masters import masters_bp
     from routes.scheduler import scheduler_bp
     from routes.progress import progress_bp, progress_api_bp
+    from routes.capacity import capacity_bp
     app.register_blueprint(orders_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(masters_bp)
     app.register_blueprint(scheduler_bp)
     app.register_blueprint(progress_bp)
     app.register_blueprint(progress_api_bp)
+    app.register_blueprint(capacity_bp)
 
     from models import Order
     from sqlalchemy import func
