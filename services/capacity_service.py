@@ -165,6 +165,70 @@ def get_monthly_loads(months: int = 6) -> list[dict]:
     return list(reversed(result))
 
 
+def get_overtime_simulation(year: int, month: int) -> list[dict]:
+    """残業 0h / 20h / 40h 追加時の工程別対応可否シミュレーション"""
+    summary = get_capacity_summary(year, month)
+    result = []
+    for p in summary.process_loads:
+        if p.required_hours <= p.available_hours:
+            status_0 = "ok"
+        else:
+            status_0 = "ng"
+
+        if p.required_hours <= p.available_hours + 20:
+            status_20 = "ok"
+        else:
+            status_20 = "ng"
+
+        if p.required_hours <= p.available_hours + 40:
+            status_40 = "ok"
+        else:
+            status_40 = "ng"
+
+        shortage_0 = max(0.0, round(p.required_hours - p.available_hours, 1))
+        shortage_20 = max(0.0, round(p.required_hours - p.available_hours - 20, 1))
+        shortage_40 = max(0.0, round(p.required_hours - p.available_hours - 40, 1))
+
+        result.append({
+            "process_name": p.process_name,
+            "process_order": p.process_order,
+            "required_hours": p.required_hours,
+            "available_hours": p.available_hours,
+            "load_rate": p.load_rate,
+            "ot_0h": {"status": status_0, "shortage": shortage_0},
+            "ot_20h": {"status": status_20, "shortage": shortage_20},
+            "ot_40h": {"status": status_40, "shortage": shortage_40},
+        })
+    return result
+
+
+def get_monthly_trend(months: int = 6) -> dict:
+    """月別×工程別の負荷率推移（折れ線グラフ用）"""
+    monthly = get_monthly_loads(months)
+    # 登場する全工程名を収集
+    all_processes: list[str] = []
+    for m in monthly:
+        for p in m["process_loads"]:
+            if p["process_name"] not in all_processes:
+                all_processes.append(p["process_name"])
+
+    labels = [m["label"] for m in monthly]
+    datasets = []
+    colors = ["#E24B4A", "#FAC775", "#9FE1CB", "#7CB5D9", "#C39BD3", "#A8D8A8"]
+    for i, pname in enumerate(all_processes):
+        data = []
+        for m in monthly:
+            match = next((p for p in m["process_loads"] if p["process_name"] == pname), None)
+            data.append(match["load_rate"] if match else None)
+        datasets.append({
+            "label": pname,
+            "data": data,
+            "color": colors[i % len(colors)],
+        })
+
+    return {"labels": labels, "datasets": datasets}
+
+
 def _count_working_days(start: date, end: date) -> int:
     from datetime import timedelta
     count = 0

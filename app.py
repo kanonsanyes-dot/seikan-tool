@@ -34,6 +34,7 @@ def create_app():
     from models import Order
     from sqlalchemy import func
     from datetime import date, timedelta
+    from services.capacity_service import get_capacity_summary
 
     @app.route("/")
     def dashboard():
@@ -45,7 +46,16 @@ def create_app():
         ng = Order.query.filter(Order.data_quality != "照合OK").count()
         this_month_qty = db.session.query(func.coalesce(func.sum(Order.quantity), 0)).filter(Order.ship_date >= month_start, Order.ship_date < next_month).scalar()
         upcoming = Order.query.filter(Order.ship_date >= today, Order.ship_date <= today + timedelta(days=30)).order_by(Order.ship_date).limit(20).all()
-        return render_template("dashboard.html", total=total, ok=ok, ng=ng, this_month_qty=this_month_qty, upcoming=upcoming, edition=EDITION)
+        cap = get_capacity_summary(today.year, today.month)
+        return render_template(
+            "dashboard.html",
+            total=total, ok=ok, ng=ng,
+            this_month_qty=this_month_qty,
+            upcoming=upcoming,
+            edition=EDITION,
+            bottleneck=cap.bottleneck,
+            critical_count=len(cap.critical_processes),
+        )
 
     @app.route("/progress/gantt")
     def progress_gantt():

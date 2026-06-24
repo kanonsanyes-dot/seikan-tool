@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import date
 from flask import Blueprint, render_template, request, jsonify
-from services.capacity_service import get_capacity_summary, get_monthly_loads
+from services.capacity_service import get_capacity_summary, get_monthly_loads, get_overtime_simulation, get_monthly_trend
 
 capacity_bp = Blueprint("capacity", __name__, url_prefix="/capacity")
 
@@ -61,3 +61,17 @@ def api_summary():
 def api_monthly():
     months = int(request.args.get("months", 6))
     return jsonify(get_monthly_loads(months))
+
+
+@capacity_bp.route("/api/overtime-simulation")
+def api_overtime_simulation():
+    today = date.today()
+    year = int(request.args.get("year", today.year))
+    month = int(request.args.get("month", today.month))
+    return jsonify(get_overtime_simulation(year, month))
+
+
+@capacity_bp.route("/api/trend")
+def api_trend():
+    months = int(request.args.get("months", 6))
+    return jsonify(get_monthly_trend(months))
