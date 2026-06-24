@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{% if wo %}工程管理票 編集{% else %}工程管理票 新規登録{% endif %} - SeikanTool{% endblock %}
+{% block h1 %}{% if wo %}工程管理票 編集{% else %}工程管理票 新規登録{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">品名 <span class="text-danger">*</span></label>
+              <input type="text" name="product_name" class="form-control"
+                     value="{{ wo.product_name if wo else data.get('product_name','') }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">工程品名</label>
+              <input type="text" name="process_product_name" class="form-control"
+                     value="{{ wo.process_product_name if wo else data.get('process_product_name','') }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">顧客</label>
+              <input type="text" name="customer" class="form-control"
+                     value="{{ wo.customer if wo else data.get('customer','') }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">ロット番号</label>
+              <input type="text" name="lot_no" class="form-control"
+                     value="{{ wo.lot_no if wo else data.get('lot_no','') }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">数量</label>
+              <input type="number" name="quantity" class="form-control" min="0"
+                     value="{{ wo.quantity if wo else data.get('quantity','0') }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">納期</label>
+              <input type="date" name="ship_date" class="form-control"
+                     value="{{ wo.ship_date.strftime('%Y-%m-%d') if wo and wo.ship_date else data.get('ship_date','') }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">優先度</label>
+              <select name="priority" class="form-select">
+                {% for p in priority_list %}
+                <option value="{{ p }}" {% if (wo and wo.priority == p) or (not wo and data.get('priority') == p) %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">状態</label>
+              <select name="status" class="form-select">
+                {% for s in status_list %}
+                <option value="{{ s }}" {% if (wo and wo.status == s) or (not wo and s == '未着手') %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">備考</label>
+              <textarea name="remarks" class="form-control" rows="3">{{ wo.remarks if wo else data.get('remarks','') }}</textarea>
+            </div>
+          </div>
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>{% if wo %}更新{% else %}登録{% endif %}
+            </button>
+            <a href="{{ url_for('work_orders.list_work_orders') }}" class="btn btn-outline-secondary">キャンセル</a>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% if not wo %}
+    <p class="text-muted small mt-2">
+      <i class="bi bi-info-circle me-1"></i>登録後、品名工程標準マスタに一致する工程明細を自動生成します。
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

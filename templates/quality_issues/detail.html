@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ issue.issue_no }} - SeikanTool{% endblock %}
+{% block h1 %}品質異常 詳細{% endblock %}
+
+{% block content %}
+<div class="d-flex gap-2 mb-3">
+  <a href="{{ url_for('quality_issues.list_issues') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>一覧
+  </a>
+  <a href="{{ url_for('quality_issues.edit_issue', issue_id=issue.issue_id) }}" class="btn btn-sm btn-outline-primary">
+    <i class="bi bi-pencil me-1"></i>編集
+  </a>
+  {% if issue.work_order_id %}
+  <a href="{{ url_for('work_orders.detail', wo_id=issue.work_order_id) }}" class="btn btn-sm btn-outline-secondary">
+    工程管理票に戻る
+  </a>
+  {% endif %}
+</div>
+
+{% set expired = issue.due_date and issue.due_date < today and issue.status != '完了' %}
+<div class="card {% if expired %}border-danger{% endif %}">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-bold">{{ issue.issue_no }}</span>
+    {% set sc = {'完了':'success','調査中':'warning text-dark','対策中':'primary','確認待ち':'info text-dark'} %}
+    <span class="badge bg-{{ sc.get(issue.status,'secondary') }} fs-6">{{ issue.status }}</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-4"><div class="text-muted small">品名</div><div class="fw-semibold">{{ issue.product_name }}</div></div>
+      <div class="col-sm-4"><div class="text-muted small">工程</div><div>{{ issue.process_name or '-' }}</div></div>
+      <div class="col-sm-4"><div class="text-muted small">ロット</div><div>{{ issue.lot_no or '-' }}</div></div>
+      <div class="col-sm-4"><div class="text-muted small">発生日</div><div>{{ issue.occurred_date or '-' }}</div></div>
+      <div class="col-sm-4"><div class="text-muted small">異常種別</div><div>{{ issue.issue_type or '-' }}</div></div>
+      <div class="col-sm-4"><div class="text-muted small">担当</div><div>{{ issue.owner or '-' }}</div></div>
+      <div class="col-sm-4">
+        <div class="text-muted small">対応期限</div>
+        <div class="{% if expired %}text-danger fw-bold{% endif %}">{{ issue.due_date or '-' }}{% if expired %} ⚠ 超過{% endif %}</div>
+      </div>
+      <div class="col-sm-4"><div class="text-muted small">完了日</div><div>{{ issue.close_date or '-' }}</div></div>
+    </div>
+    <hr>
+    {% for label, val in [('異常内容', issue.detail), ('暫定処置', issue.temporary_action), ('原因分析', issue.root_cause), ('是正処置', issue.corrective_action)] %}
+    {% if val %}
+    <div class="mb-3">
+      <div class="fw-bold text-muted small mb-1">{{ label }}</div>
+      <div class="p-2 bg-light rounded small" style="white-space:pre-wrap">{{ val }}</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

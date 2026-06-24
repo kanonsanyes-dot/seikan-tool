@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{% if issue %}品質異常 編集{% else %}品質異常 新規登録{% endif %} - SeikanTool{% endblock %}
+{% block h1 %}{% if issue %}品質異常 編集{% else %}品質異常 新規登録{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="work_order_id" value="{{ work_order_id or '' }}">
+          <input type="hidden" name="process_id" value="{{ process_id or '' }}">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-bold">品名 <span class="text-danger">*</span></label>
+              <input type="text" name="product_name" class="form-control" required
+                     value="{{ issue.product_name if issue else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">工程名</label>
+              <input type="text" name="process_name" class="form-control"
+                     value="{{ issue.process_name if issue else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">ロット番号</label>
+              <input type="text" name="lot_no" class="form-control"
+                     value="{{ issue.lot_no if issue else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">発生日</label>
+              <input type="date" name="occurred_date" class="form-control"
+                     value="{{ issue.occurred_date.strftime('%Y-%m-%d') if issue and issue.occurred_date else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">異常種別</label>
+              <select name="issue_type" class="form-select">
+                <option value="">選択</option>
+                {% for t in issue_types %}
+                <option value="{{ t }}" {% if issue and issue.issue_type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">状態</label>
+              <select name="status" class="form-select">
+                {% for s in status_list %}
+                <option value="{{ s }}" {% if issue and issue.status == s %}selected{% elif not issue and s == '調査中' %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">異常内容</label>
+              <textarea name="detail" class="form-control" rows="3">{{ issue.detail if issue else '' }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">暫定処置</label>
+              <textarea name="temporary_action" class="form-control" rows="2">{{ issue.temporary_action if issue else '' }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">原因分析</label>
+              <textarea name="root_cause" class="form-control" rows="2">{{ issue.root_cause if issue else '' }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">是正処置</label>
+              <textarea name="corrective_action" class="form-control" rows="2">{{ issue.corrective_action if issue else '' }}</textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">担当者</label>
+              <input type="text" name="owner" class="form-control"
+                     value="{{ issue.owner if issue else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">対応期限</label>
+              <input type="date" name="due_date" class="form-control"
+                     value="{{ issue.due_date.strftime('%Y-%m-%d') if issue and issue.due_date else '' }}">
+            </div>
+            {% if issue %}
+            <div class="col-md-4">
+              <label class="form-label fw-bold">完了日</label>
+              <input type="date" name="close_date" class="form-control"
+                     value="{{ issue.close_date.strftime('%Y-%m-%d') if issue and issue.close_date else '' }}">
+            </div>
+            {% endif %}
+          </div>
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-danger">
+              <i class="bi bi-check-lg me-1"></i>{% if issue %}更新{% else %}登録{% endif %}
+            </button>
+            <a href="{{ url_for('quality_issues.list_issues') }}" class="btn btn-outline-secondary">キャンセル</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

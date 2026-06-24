@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}工程管理票一覧 - SeikanTool{% endblock %}
+{% block h1 %}工程管理票一覧{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <span class="text-muted small">{{ items|length }} 件</span>
+  <a href="{{ url_for('work_orders.new_work_order') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>新規登録
+  </a>
+</div>
+
+{# 検索フォーム #}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="品名 / 顧客 / ロット / 管理番号">
+      </div>
+      <div class="col-sm-2">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">全状態</option>
+          {% for s in status_list %}
+          <option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" placeholder="納期 FROM">
+      </div>
+      <div class="col-sm-2">
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" placeholder="納期 TO">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-primary">検索</button>
+        <a href="{{ url_for('work_orders.list_work_orders') }}" class="btn btn-sm btn-outline-secondary">クリア</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# 一括ステータス変更バー #}
+<form method="post" action="{{ url_for('work_orders.bulk_status') }}" id="bulkForm">
+<div id="bulkBar" class="alert alert-primary py-2 px-3 mb-2 d-flex align-items-center gap-3" style="display:none!important;">
+  <span class="small fw-bold"><span id="bulkCount">0</span> 件選択中</span>
+  <select name="bulk_status" class="form-select form-select-sm" style="width:140px;">
+    {% for s in status_list %}
+    <option value="{{ s }}">{{ s }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-sm btn-primary">一括変更</button>
+  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">解除</button>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:32px;"><input type="checkbox" id="checkAll" class="form-check-input" onchange="toggleAll(this)"></th>
+          <th>管理番号</th>
+          <th>顧客</th>
+          <th>品名</th>
+          <th>ロット</th>
+          <th class="text-end">数量</th>
+          <th>納期</th>
+          <th>状態</th>
+          <th>遅延</th>
+          <th>最終工程</th>
+          <th>更新日</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for wo in items %}
+        {% set overdue = wo.ship_date and wo.ship_date < today and wo.status not in ['完了','停止','取消'] %}
+        <tr class="{% if overdue %}table-danger{% endif %}">
+          <td><input type="checkbox" name="wo_ids" value="{{ wo.work_order_id }}" class="form-check-input wo-check" onchange="updateBulkBar()"></td>
+          <td><a href="{{ url_for('work_orders.detail', wo_id=wo.work_order_id) }}" class="fw-bold text-decoration-none">{{ wo.work_order_no }}</a></td>
+          <td>{{ wo.customer or '-' }}</td>
+          <td>{{ wo.product_name }}</td>
+          <td>{{ wo.lot_no or '-' }}</td>
+          <td class="text-end">{{ "{:,}".format(wo.quantity) }}</td>
+          <td>{{ wo.ship_date.strftime('%Y-%m-%d') if wo.ship_date else '-' }}</td>
+          <td>
+            {% set sc = {'未着手':'secondary','進行中':'primary','完了':'success','保留':'warning','停止':'dark','取消':'dark'} %}
+            <span class="badge bg-{{ sc.get(wo.status, 'secondary') }}">{{ wo.status }}</span>
+          </td>
+          <td>{% if overdue %}<span class="badge bg-danger">超過</span>{% else %}-{% endif %}</td>
+          <td class="small text-muted">
+            {% if wo.processes %}{{ wo.processes[-1].process_name }}{% else %}-{% endif %}
+          </td>
+          <td class="small text-muted">{{ wo.updated_at.strftime('%m/%d') if wo.updated_at else '' }}</td>
+          <td>
+            <a href="{{ url_for('work_orders.detail', wo_id=wo.work_order_id) }}" class="btn btn-xs btn-outline-secondary btn-sm py-0 px-2">詳細</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="12" class="text-center text-muted py-4">工程管理票がありません</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.wo-check:checked');
+  const bar = document.getElementById('bulkBar');
+  document.getElementById('bulkCount').textContent = checked.length;
+  bar.style.display = checked.length > 0 ? '' : 'none';
+}
+
+function toggleAll(el) {
+  document.querySelectorAll('.wo-check').forEach(cb => cb.checked = el.checked);
+  updateBulkBar();
+}
+
+function clearSelection() {
+  document.querySelectorAll('.wo-check').forEach(cb => cb.checked = false);
+  document.getElementById('checkAll').checked = false;
+  updateBulkBar();
+}
+</script>
+{% endblock %}

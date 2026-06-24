@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>工程管理票 {{ wo.work_order_no }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Hiragino Kaku Gothic ProN","Meiryo",sans-serif; font-size: 10pt; color: #111; }
+    .page { width: 210mm; min-height: 297mm; padding: 14mm 16mm; margin: 0 auto; }
+    .header { border-bottom: 2px solid #2563EB; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; }
+    .title { font-size: 16pt; font-weight: bold; color: #2563EB; }
+    .meta { font-size: 9pt; color: #555; }
+    .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+    .info-box { border: 1px solid #D1D5DB; border-radius: 4px; padding: 6px 8px; }
+    .info-label { font-size: 8pt; color: #6B7280; }
+    .info-value { font-size: 11pt; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+    th { background: #EFF6FF; color: #1D4ED8; font-weight: bold; padding: 5px 6px; border: 1px solid #BFDBFE; text-align: center; }
+    td { padding: 4px 6px; border: 1px solid #E5E7EB; }
+    .section-title { font-weight: bold; font-size: 11pt; margin: 14px 0 6px; border-left: 4px solid #2563EB; padding-left: 8px; }
+    .print-bar { position: fixed; top: 0; left: 0; right: 0; background: #2563EB; color: #fff; padding: 8px 20px; display: flex; gap: 12px; align-items: center; font-size: 10pt; z-index: 100; }
+    .print-bar button { background: #fff; color: #2563EB; border: none; padding: 4px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .print-bar a { color: #fff; }
+    body.has-bar .page { margin-top: 42px; }
+    @media print { .print-bar { display: none !important; } body.has-bar .page { margin-top: 0; } }
+    .memo-box { border: 1px solid #E5E7EB; border-radius: 4px; min-height: 60px; padding: 8px; margin-top: 6px; }
+    .footer { border-top: 1px solid #E5E7EB; margin-top: 20px; padding-top: 6px; font-size: 8pt; color: #9CA3AF; display: flex; justify-content: space-between; }
+    .sig-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-top: 10px; }
+    .sig-box { border: 1px solid #D1D5DB; border-radius: 4px; padding: 6px; text-align: center; }
+    .sig-label { font-size: 8pt; color: #6B7280; }
+    .sig-area { height: 40px; }
+  </style>
+</head>
+<body class="has-bar">
+<div class="print-bar">
+  <strong>工程管理票</strong>
+  <button onclick="window.print()">🖨 印刷 / PDF保存</button>
+  <a href="{{ url_for('work_orders.detail', wo_id=wo.work_order_id) }}">← 詳細に戻る</a>
+  <span style="margin-left:auto;">SeikanTool 出力: {{ today.strftime('%Y-%m-%d') }}</span>
+</div>
+
+<div class="page">
+  <div class="header">
+    <div class="title">工程管理票</div>
+    <div class="meta">
+      <div>{{ wo.work_order_no }}</div>
+      <div>出力: {{ today.strftime('%Y年%m月%d日') }}</div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-box">
+      <div class="info-label">品名</div>
+      <div class="info-value">{{ wo.product_name }}</div>
+      {% if wo.process_product_name %}<div style="font-size:8pt;color:#6B7280">{{ wo.process_product_name }}</div>{% endif %}
+    </div>
+    <div class="info-box">
+      <div class="info-label">顧客</div>
+      <div class="info-value">{{ wo.customer or '-' }}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">ロット番号</div>
+      <div class="info-value">{{ wo.lot_no or '-' }}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">数量</div>
+      <div class="info-value">{{ "{:,}".format(wo.quantity) }} pcs</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">納期</div>
+      <div class="info-value">{{ wo.ship_date.strftime('%Y-%m-%d') if wo.ship_date else '-' }}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">状態</div>
+      <div class="info-value">{{ wo.status }}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">優先度</div>
+      <div class="info-value">{{ wo.priority }}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">備考</div>
+      <div style="font-size:9pt">{{ wo.remarks or '-' }}</div>
+    </div>
+  </div>
+
+  <div class="section-title">工程明細</div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>工程名</th>
+        <th>計画開始</th><th>計画終了</th>
+        <th>実績開始</th><th>実績完了</th>
+        <th>投入数</th><th>良品数</th><th>不良数</th><th>歩留%</th>
+        <th>状態</th><th>作業者</th><th>設備</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in wo.processes %}
+      {% set yr = (p.good_quantity / p.input_quantity * 100)|round(1) if p.input_quantity else '-' %}
+      <tr>
+        <td style="text-align:center">{{ p.process_order }}</td>
+        <td style="font-weight:bold">{{ p.process_name }}</td>
+        <td>{{ p.planned_start_date or '' }}</td>
+        <td>{{ p.planned_end_date or '' }}</td>
+        <td>{{ p.actual_start_date or '' }}</td>
+        <td>{{ p.actual_end_date or '' }}</td>
+        <td style="text-align:right">{{ p.input_quantity }}</td>
+        <td style="text-align:right">{{ p.good_quantity }}</td>
+        <td style="text-align:right">{{ p.defect_quantity }}</td>
+        <td style="text-align:right">{{ yr }}{% if yr != '-' %}%{% endif %}</td>
+        <td style="text-align:center">{{ p.status }}</td>
+        <td>{{ p.operator or '' }}</td>
+        <td>{{ p.equipment or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="sig-row" style="margin-top:16px">
+    <div class="sig-box"><div class="sig-label">確認</div><div class="sig-area"></div></div>
+    <div class="sig-box"><div class="sig-label">承認</div><div class="sig-area"></div></div>
+    <div class="sig-box"><div class="sig-label">作成</div><div class="sig-area"></div></div>
+    <div class="sig-box"><div class="sig-label">品質確認</div><div class="sig-area"></div></div>
+  </div>
+
+  <div class="section-title" style="margin-top:14px">メモ</div>
+  <div class="memo-box"></div>
+
+  <div class="footer">
+    <span>SeikanTool — 工程管理票</span>
+    <span>{{ wo.work_order_no }} / {{ today.strftime('%Y-%m-%d') }}</span>
+  </div>
+</div>
+</body>
+</html>

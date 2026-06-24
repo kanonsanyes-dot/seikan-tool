@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}実績入力 {{ wo.work_order_no }} - SeikanTool{% endblock %}
+{% block h1 %}実績入力{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <a href="{{ url_for('work_orders.detail', wo_id=wo.work_order_id) }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>詳細に戻る
+  </a>
+  <span class="fw-bold">{{ wo.work_order_no }}</span>
+  <span class="text-muted">{{ wo.product_name }}　{{ wo.customer or '' }}　{{ "{:,}".format(wo.quantity) }} pcs</span>
+</div>
+
+<form method="post">
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width:100px">工程名</th>
+            <th style="min-width:120px">実績開始</th>
+            <th style="min-width:120px">実績完了</th>
+            <th style="min-width:80px">投入数</th>
+            <th style="min-width:80px">良品数</th>
+            <th style="min-width:80px">不良数</th>
+            <th style="min-width:90px">歩留%</th>
+            <th style="min-width:130px">状態</th>
+            <th style="min-width:100px">作業者</th>
+            <th style="min-width:100px">設備</th>
+            <th style="min-width:160px">備考</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in wo.processes %}
+          {% set k = p.process_id|string %}
+          <tr>
+            <td class="fw-semibold">{{ p.process_name }}</td>
+            <td>
+              <input type="date" name="start_{{ k }}" class="form-control form-control-sm"
+                     value="{{ p.actual_start_date.strftime('%Y-%m-%d') if p.actual_start_date else '' }}">
+            </td>
+            <td>
+              <input type="date" name="end_{{ k }}" class="form-control form-control-sm"
+                     value="{{ p.actual_end_date.strftime('%Y-%m-%d') if p.actual_end_date else '' }}">
+            </td>
+            <td>
+              <input type="number" name="input_{{ k }}" class="form-control form-control-sm text-end actual-input"
+                     data-proc="{{ k }}" data-field="input" min="0" value="{{ p.input_quantity }}">
+            </td>
+            <td>
+              <input type="number" name="good_{{ k }}" class="form-control form-control-sm text-end actual-input"
+                     data-proc="{{ k }}" data-field="good" min="0" value="{{ p.good_quantity }}">
+            </td>
+            <td>
+              <input type="number" name="defect_{{ k }}" class="form-control form-control-sm text-end actual-input"
+                     data-proc="{{ k }}" data-field="defect" min="0" value="{{ p.defect_quantity }}">
+            </td>
+            <td>
+              <span id="yield_{{ k }}" class="fw-semibold">
+                {% if p.input_quantity > 0 %}{{ (p.good_quantity / p.input_quantity * 100)|round(1) }}%{% else %}-{% endif %}
+              </span>
+            </td>
+            <td>
+              <select name="status_{{ k }}" class="form-select form-select-sm">
+                {% for s in status_list %}
+                <option value="{{ s }}" {% if p.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+                <option value="異常あり" {% if p.status == '異常あり' %}selected{% endif %}>異常あり</option>
+              </select>
+            </td>
+            <td>
+              <input type="text" name="operator_{{ k }}" class="form-control form-control-sm"
+                     value="{{ p.operator or '' }}">
+            </td>
+            <td>
+              <input type="text" name="equipment_{{ k }}" class="form-control form-control-sm"
+                     value="{{ p.equipment or '' }}">
+            </td>
+            <td>
+              <input type="text" name="remarks_{{ k }}" class="form-control form-control-sm"
+                     value="{{ p.remarks or '' }}">
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="11" class="text-center text-muted py-4">工程明細がありません</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="mt-3 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-save me-1"></i>保存
+    </button>
+    <a href="{{ url_for('work_orders.detail', wo_id=wo.work_order_id) }}" class="btn btn-outline-secondary">キャンセル</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.actual-input').forEach(el => {
+  el.addEventListener('input', () => {
+    const k = el.dataset.proc;
+    const inp = parseFloat(document.querySelector(`[name="input_${k}"]`)?.value) || 0;
+    const good = parseFloat(document.querySelector(`[name="good_${k}"]`)?.value) || 0;
+    const span = document.getElementById(`yield_${k}`);
+    if (span) span.textContent = inp > 0 ? (good / inp * 100).toFixed(1) + '%' : '-';
+  });
+});
+</script>
+{% endblock %}
