@@ -94,6 +94,56 @@
     </div>
   </div>
 
+  <div class="kpi-grid" style="margin-top:0;">
+    <div class="kpi-card kpi-blue {% if wo_overdue > 0 %}kpi-alert{% endif %}">
+      <div class="kpi-label">
+        <span class="kpi-icon"><i class="bi bi-file-earmark-text-fill"></i></span>
+        <span>工程管理票 進行中</span>
+      </div>
+      <div class="kpi-value">{{ wo_inprogress }}</div>
+      <div class="kpi-sub">
+        <a href="{{ url_for('work_orders.list_work_orders') }}" style="color:inherit;text-decoration:underline;">
+          {% if wo_overdue > 0 %}遅延 {{ wo_overdue }}件あり{% else %}一覧を見る→{% endif %}
+        </a>
+      </div>
+    </div>
+
+    <div class="kpi-card {% if wo_overdue > 0 %}kpi-red kpi-alert{% else %}kpi-green{% endif %}">
+      <div class="kpi-label">
+        <span class="kpi-icon"><i class="bi bi-alarm-fill"></i></span>
+        <span>工程管理票 納期超過</span>
+      </div>
+      <div class="kpi-value">{{ wo_overdue }}</div>
+      <div class="kpi-sub">
+        <a href="{{ url_for('work_orders.list_work_orders') }}" style="color:inherit;text-decoration:underline;">管理票一覧→</a>
+      </div>
+    </div>
+
+    <div class="kpi-card {% if qi_overdue > 0 %}kpi-red kpi-alert{% elif qi_open > 0 %}kpi-purple{% else %}kpi-green{% endif %}">
+      <div class="kpi-label">
+        <span class="kpi-icon"><i class="bi bi-shield-exclamation"></i></span>
+        <span>品質異常 未完了</span>
+      </div>
+      <div class="kpi-value">{{ qi_open }}</div>
+      <div class="kpi-sub">
+        <a href="{{ url_for('quality_issues.list_issues') }}" style="color:inherit;text-decoration:underline;">
+          {% if qi_overdue > 0 %}期限超過 {{ qi_overdue }}件{% else %}品質異常一覧→{% endif %}
+        </a>
+      </div>
+    </div>
+
+    <div class="kpi-card {% if qi_overdue > 0 %}kpi-red kpi-alert{% else %}kpi-cyan{% endif %}">
+      <div class="kpi-label">
+        <span class="kpi-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
+        <span>品質異常 期限超過</span>
+      </div>
+      <div class="kpi-value">{{ qi_overdue }}</div>
+      <div class="kpi-sub">
+        <a href="{{ url_for('quality_issues.list_issues') }}" style="color:inherit;text-decoration:underline;">要対応案件→</a>
+      </div>
+    </div>
+  </div>
+
   <div class="status-progress-card">
     <div class="status-progress-header">
       <span>照合ステータス</span>

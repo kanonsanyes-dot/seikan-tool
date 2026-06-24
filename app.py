@@ -41,7 +41,7 @@ def create_app():
     app.register_blueprint(qi_bp)
     app.register_blueprint(meas_bp)
 
-    from models import Order
+    from models import Order, WorkOrder, QualityIssue
     from sqlalchemy import func
     from datetime import date, timedelta
     from services.capacity_service import get_capacity_summary
@@ -59,6 +59,16 @@ def create_app():
         upcoming = Order.query.filter(Order.ship_date >= today, Order.ship_date <= today + timedelta(days=30)).order_by(Order.ship_date).limit(20).all()
         cap = get_capacity_summary(today.year, today.month)
         delay = get_delay_summary()
+        wo_inprogress = WorkOrder.query.filter_by(status="進行中").count()
+        wo_overdue = WorkOrder.query.filter(
+            WorkOrder.ship_date < today,
+            WorkOrder.status.notin_(["完了", "停止", "取消"])
+        ).count()
+        qi_open = QualityIssue.query.filter(QualityIssue.status != "完了").count()
+        qi_overdue = QualityIssue.query.filter(
+            QualityIssue.due_date < today,
+            QualityIssue.status != "完了"
+        ).count()
         return render_template(
             "dashboard.html",
             total=total, ok=ok, ng=ng,
@@ -70,6 +80,10 @@ def create_app():
             delay_total=delay["total"],
             bottleneck=cap.bottleneck,
             critical_count=len(cap.critical_processes),
+            wo_inprogress=wo_inprogress,
+            wo_overdue=wo_overdue,
+            qi_open=qi_open,
+            qi_overdue=qi_overdue,
         )
 
     @app.route("/progress/gantt")

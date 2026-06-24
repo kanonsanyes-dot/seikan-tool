@@ -195,6 +195,28 @@ def excel_export(wo_id):
         return redirect(url_for("work_orders.detail", wo_id=wo_id))
 
 
+@wo_bp.route("/bulk-status", methods=["POST"])
+def bulk_status():
+    ids = request.form.getlist("wo_ids")
+    new_status = request.form.get("bulk_status", "").strip()
+    if not ids or not new_status:
+        flash("対象と変更先ステータスを選択してください。", "warning")
+        return redirect(url_for("work_orders.list_work_orders"))
+    updated = 0
+    for wo_id in ids:
+        wo = WorkOrder.query.get(int(wo_id))
+        if wo:
+            wo.status = new_status
+            updated += 1
+    try:
+        db.session.commit()
+        flash(f"{updated} 件のステータスを「{new_status}」に変更しました。", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"一括変更エラー: {e}", "danger")
+    return redirect(url_for("work_orders.list_work_orders"))
+
+
 @wo_bp.route("/generate-from-order/<int:order_id>", methods=["POST"])
 def generate_from_order_view(order_id):
     order = Order.query.get_or_404(order_id)

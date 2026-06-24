@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, date
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from io import BytesIO
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from database import db
 from models import MeasurementRecord
 
@@ -115,3 +116,69 @@ def edit_measurement(meas_id):
     return render_template("measurements/form.html", m=m,
                            work_order_id=m.work_order_id, process_id=m.process_id,
                            result_list=RESULT_LIST)
+
+
+@meas_bp.route("/excel")
+def excel_export():
+    q = request.args.get("q", "").strip()
+    result = request.args.get("result", "").strip()
+    date_from = _parse_date(request.args.get("date_from", ""))
+    date_to = _parse_date(request.args.get("date_to", ""))
+    query = MeasurementRecord.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            db.or_(MeasurementRecord.product_name.like(like),
+                   MeasurementRecord.lot_no.like(like),
+                   MeasurementRecord.measurement_item.like(like))
+        )
+    if result:
+        query = query.filter(MeasurementRecord.result == result)
+    if date_from:
+        query = query.filter(MeasurementRecord.measured_date >= date_from)
+    if date_to:
+        query = query.filter(MeasurementRecord.measured_date <= date_to)
+    items = query.order_by(MeasurementRecord.measured_date.desc().nullslast(),
+                           MeasurementRecord.measurement_id.desc()).all()
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "測定記録"
+        hdr_fill = PatternFill("solid", fgColor="2563EB")
+        hdr_font = Font(bold=True, color="FFFFFF", size=10)
+        thin = Side(style="thin", color="D1D5DB")
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        headers = ["測定日", "品名", "ロット番号", "測定項目", "結果", "検査者", "備考", "保管メモ"]
+        ws.append(headers)
+        for c in range(1, len(headers) + 1):
+            cell = ws.cell(1, c)
+            cell.fill = hdr_fill
+            cell.font = hdr_font
+            cell.border = border
+            cell.alignment = Alignment(horizontal="center")
+        for m in items:
+            ws.append([
+                str(m.measured_date) if m.measured_date else "",
+                m.product_name,
+                m.lot_no or "",
+                m.measurement_item or "",
+                m.result or "",
+                m.inspector or "",
+                m.remarks or "",
+                m.storage_note or "",
+            ])
+            for c in range(1, len(headers) + 1):
+                ws.cell(ws.max_row, c).border = border
+        for col, width in zip("ABCDEFGH", [12, 24, 16, 22, 8, 14, 24, 24]):
+            ws.column_dimensions[col].width = width
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        fname = f"測定記録_{date.today().strftime('%Y%m%d')}.xlsx"
+        return send_file(buf, as_attachment=True, download_name=fname,
+                         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    except Exception as e:
+        flash(f"Excel出力エラー: {e}", "danger")
+        return redirect(url_for("measurements.list_measurements"))

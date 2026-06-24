@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, date
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from sqlalchemy import func
 from database import db
 from models import QualityIssue, WorkOrder
 
@@ -133,3 +134,22 @@ def edit_issue(issue_id):
     return render_template("quality_issues/form.html", issue=issue,
                            work_order_id=issue.work_order_id, process_id=issue.process_id,
                            status_list=STATUS_LIST, issue_types=ISSUE_TYPES)
+
+
+@qi_bp.route("/api/summary")
+def api_summary():
+    by_type = (db.session.query(QualityIssue.issue_type, func.count())
+               .filter(QualityIssue.issue_type != None, QualityIssue.issue_type != "")
+               .group_by(QualityIssue.issue_type)
+               .order_by(func.count().desc()).all())
+    by_process = (db.session.query(QualityIssue.process_name, func.count())
+                  .filter(QualityIssue.process_name != None, QualityIssue.process_name != "")
+                  .group_by(QualityIssue.process_name)
+                  .order_by(func.count().desc()).limit(10).all())
+    by_status = (db.session.query(QualityIssue.status, func.count())
+                 .group_by(QualityIssue.status).all())
+    return jsonify({
+        "by_type": [{"label": t or "未分類", "count": c} for t, c in by_type],
+        "by_process": [{"label": p or "-", "count": c} for p, c in by_process],
+        "by_status": [{"label": s, "count": c} for s, c in by_status],
+    })
