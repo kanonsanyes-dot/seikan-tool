@@ -26,43 +26,43 @@
     <nav class="sb-nav">
       <a class="sb-link {% if current_path == '/' %}sb-active{% endif %}"
          href="{{ url_for('dashboard') }}">
-        <i class="bi bi-speedometer2"></i><span>ダッシュボード</span>
+        <i class="bi bi-house-door-fill"></i><span>ダッシュボード</span>
       </a>
       <a class="sb-link {% if current_path == '/orders/import' %}sb-active{% endif %}"
          href="{{ url_for('orders.import_view') }}">
-        <i class="bi bi-upload"></i><span>受注取込</span>
+        <i class="bi bi-cloud-arrow-up-fill"></i><span>受注取込</span>
       </a>
       <a class="sb-link {% if current_path in ['/orders', '/orders/'] %}sb-active{% endif %}"
          href="{{ url_for('orders.list_orders') }}">
-        <i class="bi bi-list-ul"></i><span>受注一覧</span>
+        <i class="bi bi-table"></i><span>受注一覧</span>
       </a>
       <a class="sb-link {% if current_path == '/reports/summary' %}sb-active{% endif %}"
          href="{{ url_for('reports.summary') }}">
-        <i class="bi bi-bar-chart-line"></i><span>集計レポート</span>
+        <i class="bi bi-bar-chart-fill"></i><span>集計レポート</span>
       </a>
       <a class="sb-link {% if current_path.startswith('/scheduler') or current_path.startswith('/api/scheduler') %}sb-active{% endif %}"
          href="{{ url_for('scheduler.scheduler_view') }}">
-        <i class="bi bi-calendar3"></i><span>スケジューラー</span>
+        <i class="bi bi-calendar-check-fill"></i><span>スケジューラー</span>
       </a>
       <a class="sb-link {% if current_path in ['/progress', '/progress/'] %}sb-active{% endif %}"
          href="{{ url_for('progress.index') }}">
-        <i class="bi bi-kanban"></i><span>進捗表</span>
+        <i class="bi bi-kanban-fill"></i><span>進捗表</span>
       </a>
       <a class="sb-link {% if current_path == '/progress/gantt' %}sb-active{% endif %}"
          href="{{ url_for('progress_gantt') }}">
-        <i class="bi bi-calendar-range"></i><span>ガントチャート</span>
+        <i class="bi bi-diagram-3-fill"></i><span>ガントチャート</span>
       </a>
       <a class="sb-link {% if current_path.startswith('/capacity') %}sb-active{% endif %}"
          href="{{ url_for('capacity.index') }}">
-        <i class="bi bi-speedometer"></i><span>負荷確認</span>
+        <i class="bi bi-activity"></i><span>負荷確認</span>
       </a>
       <a class="sb-link {% if current_path.startswith('/delay') %}sb-active{% endif %}"
          href="{{ url_for('delay.index') }}">
-        <i class="bi bi-alarm"></i><span>遅延リスク</span>
+        <i class="bi bi-exclamation-triangle-fill"></i><span>遅延リスク</span>
       </a>
       <a class="sb-link {% if current_path.startswith('/admin') %}sb-active{% endif %}"
          href="{{ url_for('admin.index') }}">
-        <i class="bi bi-gear-fill"></i><span>システム管理</span>
+        <i class="bi bi-sliders"></i><span>システム管理</span>
       </a>
     </nav>
 
@@ -71,19 +71,19 @@
     <nav class="sb-nav sb-nav-master">
       <a class="sb-link {% if current_path == '/masters/customers' %}sb-active{% endif %}"
          href="{{ url_for('masters.customers') }}">
-        <i class="bi bi-building"></i><span>出荷先マスタ</span>
+        <i class="bi bi-building-fill"></i><span>出荷先マスタ</span>
       </a>
       <a class="sb-link {% if current_path == '/masters/products' %}sb-active{% endif %}"
          href="{{ url_for('masters.products') }}">
-        <i class="bi bi-box"></i><span>品名マスタ</span>
+        <i class="bi bi-box-seam-fill"></i><span>品名マスタ</span>
       </a>
       <a class="sb-link {% if current_path in ['/masters/standards', '/masters/process-standards'] %}sb-active{% endif %}"
          href="{{ url_for('masters.standards') }}">
-        <i class="bi bi-gear"></i><span>工程標準</span>
+        <i class="bi bi-tools"></i><span>工程標準</span>
       </a>
       <a class="sb-link {% if current_path in ['/masters/capacity', '/masters/process-capacity'] %}sb-active{% endif %}"
          href="{{ url_for('masters.capacity') }}">
-        <i class="bi bi-person-workspace"></i><span>工程キャパ</span>
+        <i class="bi bi-people-fill"></i><span>工程キャパ</span>
       </a>
     </nav>
   </aside>
