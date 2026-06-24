@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>キャパ確認レポート {{ year }}年{{ month }}月 - SeikanTool</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --amber: #854F0B;
+      --amber-light: #FDF6EC;
+      --text: #412402;
+      --border: #E8CFA0;
+      --ok: #1D9E75;
+      --warn: #BA7517;
+      --danger: #B91C1C;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      font-size: 11pt;
+      color: var(--text);
+      background: #fff;
+      padding: 0;
+    }
+    .page { width: 210mm; min-height: 297mm; padding: 15mm 18mm; margin: 0 auto; }
+
+    /* ヘッダー */
+    .report-header { border-bottom: 3px solid var(--amber); padding-bottom: 8px; margin-bottom: 16px; }
+    .report-title { font-size: 18pt; font-weight: bold; color: var(--amber); }
+    .report-meta { font-size: 9pt; color: #666; margin-top: 4px; }
+    .report-period { font-size: 13pt; font-weight: bold; }
+
+    /* セクション */
+    .section { margin-bottom: 18px; }
+    .section-title {
+      font-size: 12pt; font-weight: bold;
+      border-left: 4px solid var(--amber);
+      padding-left: 8px; margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    /* KPIカード */
+    .kpi-row { display: flex; gap: 10px; margin-bottom: 14px; }
+    .kpi-box {
+      flex: 1; border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px;
+      text-align: center;
+    }
+    .kpi-box.danger { border-color: var(--danger); background: #FFF5F5; }
+    .kpi-box .kpi-num { font-size: 22pt; font-weight: bold; }
+    .kpi-box .kpi-label { font-size: 8.5pt; color: #666; margin-top: 2px; }
+
+    /* テーブル */
+    table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    th { background: var(--amber-light); font-weight: bold; padding: 5px 8px; border: 1px solid var(--border); text-align: center; }
+    td { padding: 4px 8px; border: 1px solid var(--border); }
+    tr:nth-child(even) td { background: #FFFBF5; }
+    .text-end { text-align: right; }
+    .text-center { text-align: center; }
+
+    /* バッジ */
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 8.5pt; font-weight: bold; }
+    .badge-danger { background: #FEE2E2; color: var(--danger); }
+    .badge-warn { background: #FEF3C7; color: var(--warn); }
+    .badge-ok { background: #D1FAE5; color: var(--ok); }
+    .badge-medium { background: #E5E7EB; color: #374151; }
+
+    /* グラフエリア */
+    .chart-wrap { height: 180px; position: relative; }
+
+    /* 記入欄 */
+    .checklist { list-style: none; }
+    .checklist li { padding: 6px 0; border-bottom: 1px dashed var(--border); }
+    .checklist li::before { content: "□ "; font-size: 12pt; }
+    .memo-box { border: 1px solid var(--border); border-radius: 4px; min-height: 60px; padding: 8px; margin-top: 6px; background: #FFFBF5; }
+
+    /* フッター */
+    .report-footer { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 20px; font-size: 8pt; color: #999; display: flex; justify-content: space-between; }
+
+    /* 印刷用 */
+    @media print {
+      body { padding: 0; }
+      .page { padding: 10mm 14mm; }
+      .no-print { display: none !important; }
+      .page-break { page-break-before: always; }
+    }
+
+    /* 画面表示用コントロール */
+    .print-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: var(--amber); color: #fff;
+      padding: 8px 20px; display: flex; align-items: center; gap: 12px;
+      font-size: 10pt;
+    }
+    .print-bar a { color: #fff; font-size: 9.5pt; }
+    .print-bar button {
+      background: #fff; color: var(--amber); border: none;
+      padding: 4px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;
+    }
+    body.has-bar .page { margin-top: 42px; }
+  </style>
+</head>
+<body class="has-bar">
+
+<div class="print-bar no-print">
+  <strong>SeikanTool — 会議用キャパ確認レポート</strong>
+  <button onclick="window.print()">🖨 印刷 / PDF保存</button>
+  <a href="{{ url_for('admin.meeting_report_excel', year=year, month=month) }}" style="background:#fff;color:var(--amber);padding:4px 14px;border-radius:4px;font-weight:bold;text-decoration:none;">📥 Excel出力</a>
+  <a href="{{ url_for('admin.meeting_report', year=prev_year, month=prev_month) }}">← 前月</a>
+  <a href="{{ url_for('admin.meeting_report', year=next_year, month=next_month) }}">翌月 →</a>
+  <span style="margin-left:auto;">{{ year }}年{{ month }}月</span>
+</div>
+
+<div class="page">
+
+  {# ── ヘッダー ── #}
+  <div class="report-header">
+    <div class="report-title">生産キャパ確認レポート</div>
+    <div class="report-meta">
+      <span class="report-period">{{ year }}年{{ month }}月</span>
+      出力日: {{ generated_at.strftime('%Y-%m-%d') }}　　SeikanTool
+    </div>
+  </div>
+
+  {# ── ① キャパサマリ ── #}
+  <div class="section">
+    <div class="section-title">① 今月のキャパサマリ</div>
+    <div class="kpi-row">
+      <div class="kpi-box">
+        <div class="kpi-num">{{ summary.total_orders }}</div>
+        <div class="kpi-label">対象受注件数</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-num">{{ "{:,}".format(summary.total_quantity) }}</div>
+        <div class="kpi-label">合計数量（pcs）</div>
+      </div>
+      <div class="kpi-box {% if summary.bottleneck %}danger{% endif %}">
+        <div class="kpi-num" style="font-size:14pt;">{{ summary.bottleneck or "なし" }}</div>
+        <div class="kpi-label">ボトルネック工程</div>
+      </div>
+      <div class="kpi-box {% if summary.critical_processes %}danger{% endif %}">
+        <div class="kpi-num">{{ summary.critical_processes | length }}</div>
+        <div class="kpi-label">過負荷工程数</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── ② 工程別負荷率 ── #}
+  <div class="section">
+    <div class="section-title">② 工程別負荷率</div>
+    {% if summary.process_loads %}
+    <table>
+      <thead>
+        <tr>
+          <th>工程名</th>
+          <th class="text-end">必要工数(h)</th>
+          <th class="text-end">稼働時間(h)</th>
+          <th class="text-end">負荷率</th>
+          <th class="text-end">不足時間(h)</th>
+          <th class="text-center">判定</th>
+          <th class="text-center">+20h残業</th>
+          <th class="text-center">+40h残業</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in summary.process_loads %}
+        {% set s20 = [0, p.required_hours - p.available_hours - 20] | max %}
+        {% set s40 = [0, p.required_hours - p.available_hours - 40] | max %}
+        <tr>
+          <td><strong>{{ p.process_name }}</strong></td>
+          <td class="text-end">{{ p.required_hours }}</td>
+          <td class="text-end">{{ p.available_hours }}</td>
+          <td class="text-end"><strong>{{ p.load_rate }}%</strong></td>
+          <td class="text-end">{% if p.required_overtime > 0 %}{{ p.required_overtime }}{% else %}-{% endif %}</td>
+          <td class="text-center">
+            {% if p.status == 'critical' %}<span class="badge badge-danger">要調整</span>
+            {% elif p.status == 'overtime' %}<span class="badge badge-danger">残業要</span>
+            {% elif p.status == 'caution' %}<span class="badge badge-warn">注意</span>
+            {% else %}<span class="badge badge-ok">余裕あり</span>{% endif %}
+          </td>
+          <td class="text-center">{% if s20 <= 0 %}✓{% else %}<span class="badge badge-warn">不足{{ "%.1f"|format(s20) }}h</span>{% endif %}</td>
+          <td class="text-center">{% if s40 <= 0 %}✓{% else %}<span class="badge badge-danger">不足{{ "%.1f"|format(s40) }}h</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#999;">工程標準マスタ未登録のため計算できません。</p>
+    {% endif %}
+  </div>
+
+  {# ── ③ 遅延リスク案件 ── #}
+  <div class="section">
+    <div class="section-title">③ 遅延リスク案件（直近60日）</div>
+    {% if risks %}
+    <table>
+      <thead>
+        <tr>
+          <th>受注ID</th>
+          <th>品名</th>
+          <th>客先</th>
+          <th class="text-center">出荷日</th>
+          <th class="text-center">残日数</th>
+          <th>未完了工程</th>
+          <th class="text-center">リスク</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in risks %}
+        <tr>
+          <td>#{{ r.order_id }}</td>
+          <td>{{ r.product_name }}</td>
+          <td>{{ r.customer }}</td>
+          <td class="text-center">{{ r.ship_date.strftime('%m/%d') }}</td>
+          <td class="text-center">
+            <strong {% if r.days_until_ship < 0 %}style="color:var(--danger)"{% endif %}>
+              {{ r.days_until_ship }}日
+            </strong>
+          </td>
+          <td>{{ r.incomplete_processes | join(' / ') }}</td>
+          <td class="text-center">
+            {% if r.level == 'overdue' %}<span class="badge badge-danger">超過</span>
+            {% elif r.level == 'critical' %}<span class="badge badge-danger">緊急</span>
+            {% elif r.level == 'high' %}<span class="badge badge-warn">高</span>
+            {% else %}<span class="badge badge-medium">中</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#999;">遅延リスク案件はありません。</p>
+    {% endif %}
+  </div>
+
+  {# ── ④ 確認事項チェックリスト ── #}
+  <div class="section">
+    <div class="section-title">④ 次回会議までの確認事項</div>
+    <ul class="checklist">
+      {% if summary.bottleneck %}
+      <li>「{{ summary.bottleneck }}」工程の負荷超過対応（外注・残業・ロット分割）を決定する</li>
+      {% endif %}
+      {% for r in risks if r.level in ('overdue', 'critical') %}
+      <li>#{{ r.order_id }} {{ r.product_name }}（{{ r.customer }}）の対応方針を確認する　出荷日: {{ r.ship_date.strftime('%m/%d') }}</li>
+      {% endfor %}
+      <li>工程別負荷率が80%以上の工程の要員・残業計画を共有する</li>
+      <li>次月の受注見込みを確認し、早期手配が必要な品目を洗い出す</li>
+    </ul>
+  </div>
+
+  {# ── メモ欄 ── #}
+  <div class="section">
+    <div class="section-title">メモ・議事録</div>
+    <div class="memo-box"></div>
+  </div>
+
+  {# ── フッター ── #}
+  <div class="report-footer">
+    <span>SeikanTool — 生産管理システム</span>
+    <span>{{ year }}年{{ month }}月 キャパ確認レポート　出力: {{ generated_at.strftime('%Y-%m-%d') }}</span>
+  </div>
+
+</div>
+</body>
+</html>

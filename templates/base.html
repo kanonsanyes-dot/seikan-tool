@@ -52,6 +52,18 @@
          href="{{ url_for('progress_gantt') }}">
         <i class="bi bi-calendar-range"></i><span>ガントチャート</span>
       </a>
+      <a class="sb-link {% if current_path.startswith('/capacity') %}sb-active{% endif %}"
+         href="{{ url_for('capacity.index') }}">
+        <i class="bi bi-speedometer"></i><span>負荷確認</span>
+      </a>
+      <a class="sb-link {% if current_path.startswith('/delay') %}sb-active{% endif %}"
+         href="{{ url_for('delay.index') }}">
+        <i class="bi bi-alarm"></i><span>遅延リスク</span>
+      </a>
+      <a class="sb-link {% if current_path.startswith('/admin') %}sb-active{% endif %}"
+         href="{{ url_for('admin.index') }}">
+        <i class="bi bi-gear-fill"></i><span>システム管理</span>
+      </a>
     </nav>
 
     <div class="sb-divider"></div>

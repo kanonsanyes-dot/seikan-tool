@@ -221,8 +221,5 @@ __marimo__/
 .venv/
 *.db
 *.db-journal
-data/*.db
-data/logs/
-data/temp/
-data/exports/temp/
+data/
 uploads/

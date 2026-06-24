@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}システム管理 - SeikanTool{% endblock %}
+{%- block h1 -%}システム管理{%- endblock -%}
+
+{% block content %}
+<div class="row g-3">
+
+  {# エディション情報 #}
+  <div class="col-lg-6">
+    <div class="card p-3 h-100">
+      <div class="panel-header mb-3">
+        <h2 class="panel-title"><i class="bi bi-shield-check"></i> エディション情報</h2>
+      </div>
+      <div class="mb-3">
+        <span class="badge fs-6 px-3 py-2
+          {% if edition == 'pro' %}bg-warning text-dark
+          {% elif edition == 'trial' %}bg-secondary
+          {% else %}bg-info text-dark{% endif %}">
+          {{ edition | upper }}
+        </span>
+      </div>
+      <table class="table table-sm">
+        <thead><tr><th>機能</th><th class="text-center">制限値</th></tr></thead>
+        <tbody>
+          <tr><td>最大受注件数</td><td class="text-center">{{ limits.max_orders or "無制限" }}</td></tr>
+          <tr><td>CSVインポート上限</td><td class="text-center">{{ limits.max_csv_rows or "無制限" }}</td></tr>
+          <tr><td>スケジューラー同時表示</td><td class="text-center">{{ limits.max_scheduler_orders or "無制限" }}</td></tr>
+          <tr><td>PDF透かし</td><td class="text-center">{% if limits.pdf_watermark %}<span class="badge bg-warning text-dark">あり</span>{% else %}<span class="badge bg-success">なし</span>{% endif %}</td></tr>
+          <tr><td>自動バックアップ</td><td class="text-center">{% if limits.auto_backup %}<span class="badge bg-success">有効</span>{% else %}<span class="badge bg-secondary">無効</span>{% endif %}</td></tr>
+          <tr><td>ログ保存日数</td><td class="text-center">{{ limits.log_days }}日</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# バックアップ管理 #}
+  <div class="col-lg-6">
+    <div class="card p-3 h-100">
+      <div class="panel-header mb-3">
+        <h2 class="panel-title"><i class="bi bi-archive"></i> バックアップ管理</h2>
+      </div>
+      <form method="post" action="{{ url_for('admin.backup_create') }}" class="mb-3">
+        <button class="btn btn-warm" type="submit">
+          <i class="bi bi-cloud-download"></i> 今すぐバックアップ
+        </button>
+      </form>
+      {% if backups %}
+      <div class="table-responsive" style="max-height:260px;overflow-y:auto;">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>ファイル名</th><th class="text-end">サイズ</th><th class="text-center">DL</th></tr></thead>
+          <tbody>
+            {% for b in backups %}
+            <tr>
+              <td class="small text-truncate" style="max-width:220px;" title="{{ b.name }}">{{ b.name }}</td>
+              <td class="text-end small">{{ b.size_kb }}KB</td>
+              <td class="text-center">
+                <a href="{{ url_for('admin.backup_download', name=b.name) }}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-download"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted small">バックアップファイルがありません。</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# 会議用レポート #}
+  <div class="col-12">
+    <div class="card p-3">
+      <div class="panel-header mb-3">
+        <h2 class="panel-title"><i class="bi bi-file-earmark-text"></i> 会議用キャパ確認レポート</h2>
+        <span class="text-muted small">印刷・PDF出力対応</span>
+      </div>
+      <p class="text-muted small mb-3">
+        工程別負荷率・遅延リスク・残業シミュレーションをまとめた会議配布用レポートを出力します。
+        ブラウザの印刷機能（Ctrl+P）で PDF として保存できます。
+      </p>
+      <a href="{{ url_for('admin.meeting_report') }}" class="btn btn-warm" target="_blank">
+        <i class="bi bi-printer"></i> 今月のレポートを開く
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

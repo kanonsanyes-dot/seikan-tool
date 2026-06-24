@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}遅延リスク一覧 - SeikanTool{% endblock %}
+{%- block h1 -%}遅延リスク一覧{%- endblock -%}
+
+{% block content %}
+<div class="delay-page">
+
+  {# フィルタ #}
+  <form class="card p-3 mb-3 d-flex flex-row align-items-center gap-3 flex-wrap" method="get">
+    <label class="fw-bold small">表示範囲</label>
+    <select name="days" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+      {% for d in [14, 30, 60] %}
+      <option value="{{ d }}" {% if d == days_ahead %}selected{% endif %}>直近{{ d }}日</option>
+      {% endfor %}
+    </select>
+    <span class="ms-auto text-muted small">{{ total }} 件のリスク案件</span>
+  </form>
+
+  {# KPI #}
+  <div class="kpi-grid mb-3">
+    <div class="kpi-card kpi-red {% if overdue %}kpi-alert{% endif %}">
+      <div class="kpi-label"><i class="bi bi-alarm-fill"></i><span>出荷日超過</span></div>
+      <div class="kpi-value">{{ overdue | length }}</div>
+      <div class="kpi-sub">件</div>
+    </div>
+    <div class="kpi-card {% if critical %}kpi-red{% else %}kpi-green{% endif %}">
+      <div class="kpi-label"><i class="bi bi-exclamation-triangle-fill"></i><span>3日以内</span></div>
+      <div class="kpi-value">{{ critical | length }}</div>
+      <div class="kpi-sub">件</div>
+    </div>
+    <div class="kpi-card {% if high %}kpi-red{% else %}kpi-green{% endif %}">
+      <div class="kpi-label"><i class="bi bi-exclamation-circle"></i><span>7日以内</span></div>
+      <div class="kpi-value">{{ high | length }}</div>
+      <div class="kpi-sub">件</div>
+    </div>
+    <div class="kpi-card {% if medium %}kpi-purple{% else %}kpi-green{% endif %}">
+      <div class="kpi-label"><i class="bi bi-clock-history"></i><span>工程遅れあり</span></div>
+      <div class="kpi-value">{{ medium | length }}</div>
+      <div class="kpi-sub">件</div>
+    </div>
+  </div>
+
+  {% if total == 0 %}
+  <div class="card p-4 text-center text-muted">
+    <p class="mb-1"><i class="bi bi-check-circle-fill text-success fs-3"></i></p>
+    <p class="mb-0">直近{{ days_ahead }}日以内に遅延リスクのある受注はありません。</p>
+  </div>
+  {% else %}
+
+  {% macro risk_table(items, level_label, level_class, icon) %}
+  {% if items %}
+  <div class="card p-3 mb-3 border-{{ level_class }}">
+    <div class="panel-header mb-2">
+      <h2 class="panel-title">
+        <i class="bi bi-{{ icon }} text-{{ level_class }}"></i>
+        {{ level_label }}
+        <span class="badge bg-{{ level_class }} ms-1">{{ items | length }}</span>
+      </h2>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>受注ID</th>
+            <th>品名</th>
+            <th>客先</th>
+            <th class="text-center">出荷日</th>
+            <th class="text-center">残日数</th>
+            <th>未完了工程</th>
+            <th>工程遅延</th>
+            <th class="text-center">進捗</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in items %}
+          <tr>
+            <td><a href="{{ url_for('progress.index') }}?order_id={{ r.order_id }}">#{{ r.order_id }}</a></td>
+            <td class="fw-bold">{{ r.product_name }}</td>
+            <td>{{ r.customer }}</td>
+            <td class="text-center">{{ r.ship_date.strftime('%m/%d') }}</td>
+            <td class="text-center fw-bold {% if r.days_until_ship < 0 %}text-danger{% elif r.days_until_ship <= 3 %}text-danger{% else %}text-warning{% endif %}">
+              {% if r.days_until_ship < 0 %}
+                <span class="badge bg-danger">{{ r.days_until_ship }}日</span>
+              {% else %}
+                {{ r.days_until_ship }}日
+              {% endif %}
+            </td>
+            <td>
+              {% for p in r.incomplete_processes %}
+                <span class="badge bg-secondary me-1">{{ p }}</span>
+              {% endfor %}
+            </td>
+            <td>
+              {% if r.overdue_processes %}
+                {% for p in r.overdue_processes %}
+                  <span class="badge bg-danger me-1">{{ p }}</span>
+                {% endfor %}
+              {% else %}
+                <span class="text-muted small">-</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <a href="{{ url_for('progress_gantt') }}?order_id={{ r.order_id }}"
+                 class="btn btn-sm btn-warm" title="ガントで確認">
+                <i class="bi bi-calendar-range"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endmacro %}
+
+  {{ risk_table(overdue,   "出荷日超過（未完了工程あり）", "danger",  "alarm-fill") }}
+  {{ risk_table(critical,  "出荷日まで3日以内",             "danger",  "exclamation-triangle-fill") }}
+  {{ risk_table(high,      "出荷日まで7日以内",             "warning", "exclamation-circle") }}
+  {{ risk_table(medium,    "工程遅延あり（出荷日まで余裕）","secondary","clock-history") }}
+
+  {% endif %}
+
+</div>
+{% endblock %}

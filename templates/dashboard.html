@@ -9,12 +9,26 @@
 <div class="dashboard-redesign">
 
   {% if ng > 0 %}
-  <div class="alert-ng-banner mb-3">
+  <div class="alert-ng-banner mb-2">
     <div class="alert-ng-message">
       <i class="bi bi-exclamation-triangle"></i>
       <span>未照合の受注が <strong>{{ ng }}</strong> 件あります。受注一覧で確認してください。</span>
     </div>
     <a href="{{ url_for('orders.list_orders') }}" class="alert-ng-link">→ 受注一覧</a>
+  </div>
+  {% endif %}
+
+  {% if delay_overdue > 0 or delay_critical > 0 %}
+  <div class="alert-ng-banner mb-3" style="background:linear-gradient(135deg,#7B0F0F,#B91C1C);">
+    <div class="alert-ng-message">
+      <i class="bi bi-alarm-fill"></i>
+      <span>
+        {% if delay_overdue > 0 %}<strong>出荷日超過 {{ delay_overdue }}件</strong>　{% endif %}
+        {% if delay_critical > 0 %}出荷日まで3日以内 <strong>{{ delay_critical }}件</strong>{% endif %}
+        の未完了工程があります。
+      </span>
+    </div>
+    <a href="{{ url_for('delay.index') }}" class="alert-ng-link">→ 遅延リスク一覧</a>
   </div>
   {% endif %}
 
@@ -64,6 +78,19 @@
       </div>
       <div class="kpi-value">{{ "{:,}".format(this_month_qty or 0) }}</div>
       <div class="kpi-sub">pcs</div>
+    </div>
+
+    <div class="kpi-card {% if bottleneck %}kpi-red kpi-alert{% else %}kpi-green{% endif %}">
+      <div class="kpi-label">
+        <i class="bi bi-speedometer"></i>
+        <span>ボトルネック工程</span>
+      </div>
+      <div class="kpi-value" style="font-size:1rem;word-break:break-all;">{{ bottleneck or "なし" }}</div>
+      <div class="kpi-sub">
+        <a href="{{ url_for('capacity.index') }}" style="color:inherit;text-decoration:underline;">
+          {% if critical_count %}過負荷 {{ critical_count }}工程{% else %}負荷確認→{% endif %}
+        </a>
+      </div>
     </div>
   </div>
 
@@ -143,26 +170,20 @@
           <i class="bi bi-bar-chart"></i>
           工程別負荷率
         </h2>
-        <span class="panel-sub">今月モック</span>
+        <a href="{{ url_for('capacity.index') }}" class="panel-sub text-decoration-none" style="font-size:.8rem;">詳細 →</a>
       </div>
 
       <div class="capacity-chart-wrap">
         <canvas id="capacityChart" height="150"></canvas>
       </div>
+      <p id="capacityNoData" class="text-muted text-center small d-none">
+        工程標準マスタを登録すると負荷率が表示されます。
+      </p>
 
       <div class="chart-legend">
-        <span>
-          <i class="legend-dot legend-over"></i>
-          過負荷（80%+）
-        </span>
-        <span>
-          <i class="legend-dot legend-warn"></i>
-          注意（60-79%）
-        </span>
-        <span>
-          <i class="legend-dot legend-ok"></i>
-          正常
-        </span>
+        <span><i class="legend-dot legend-over"></i>過負荷（100%+）</span>
+        <span><i class="legend-dot legend-warn"></i>注意（80〜100%）</span>
+        <span><i class="legend-dot legend-ok"></i>余裕あり</span>
       </div>
     </div>
   </div>
@@ -185,6 +206,7 @@
   }
 
   const chartEl = document.getElementById('capacityChart');
+  const noDataEl = document.getElementById('capacityNoData');
   if (!chartEl || typeof Chart === 'undefined') return;
 
   if (window._seikanCapacityChart) {
@@ -192,75 +214,63 @@
     window._seikanCapacityChart = null;
   }
 
-  const capacityData = {
-    labels: ['プレス', 'バレル', 'めっき', '外観検査', '出荷'],
-    values: [65, 42, 82, 38, 15]
-  };
-
   const textColor = 'rgba(99, 56, 6, 0.7)';
   const gridColor = 'rgba(240, 217, 184, 0.6)';
 
-  const barColors = capacityData.values.map(v => {
-    if (v >= 80) return '#F09595';
-    if (v >= 60) return '#FAC775';
+  function statusColor(status) {
+    if (status === 'critical') return '#E24B4A';
+    if (status === 'overtime') return '#F09595';
+    if (status === 'caution') return '#FAC775';
     return '#9FE1CB';
-  });
+  }
 
-  const borderColors = capacityData.values.map(v => {
-    if (v >= 80) return '#E24B4A';
-    if (v >= 60) return '#BA7517';
-    return '#1D9E75';
-  });
-
-  window._seikanCapacityChart = new Chart(chartEl.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: capacityData.labels,
-      datasets: [{
-        data: capacityData.values,
-        backgroundColor: barColors,
-        borderColor: borderColors,
-        borderWidth: 1.5,
-        borderRadius: 4,
-        maxBarThickness: 42
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {
-        duration: 550,
-        easing: 'easeOutQuart'
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: context => `${context.parsed.y}%`
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: textColor,
-            font: { size: 11 }
-          }
-        },
-        y: {
-          min: 0,
-          max: 100,
-          grid: { color: gridColor },
-          ticks: {
-            color: textColor,
-            font: { size: 11 },
-            callback: value => value + '%'
-          }
-        }
+  fetch('/capacity/api/summary')
+    .then(r => r.json())
+    .then(data => {
+      const loads = data.process_loads || [];
+      if (!loads.length) {
+        chartEl.classList.add('d-none');
+        if (noDataEl) noDataEl.classList.remove('d-none');
+        return;
       }
-    }
-  });
+      const labels = loads.map(p => p.process_name);
+      const values = loads.map(p => p.load_rate);
+      const colors = loads.map(p => statusColor(p.status));
+
+      window._seikanCapacityChart = new Chart(chartEl.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderRadius: 4,
+            maxBarThickness: 42
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 550, easing: 'easeOutQuart' },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ctx.parsed.y + '%' } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11 } } },
+            y: {
+              min: 0,
+              suggestedMax: Math.max(100, ...values) + 10,
+              grid: { color: gridColor },
+              ticks: { color: textColor, font: { size: 11 }, callback: v => v + '%' }
+            }
+          }
+        }
+      });
+    })
+    .catch(() => {
+      if (noDataEl) noDataEl.classList.remove('d-none');
+    });
 
   window.addEventListener('beforeunload', function () {
     if (window._seikanCapacityChart) {
