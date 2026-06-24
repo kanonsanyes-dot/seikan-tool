@@ -56,6 +56,10 @@
          href="{{ url_for('capacity.index') }}">
         <i class="bi bi-speedometer"></i><span>負荷確認</span>
       </a>
+      <a class="sb-link {% if current_path.startswith('/delay') %}sb-active{% endif %}"
+         href="{{ url_for('delay.index') }}">
+        <i class="bi bi-alarm"></i><span>遅延リスク</span>
+      </a>
     </nav>
 
     <div class="sb-divider"></div>

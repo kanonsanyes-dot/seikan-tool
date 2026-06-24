@@ -9,12 +9,26 @@
 <div class="dashboard-redesign">
 
   {% if ng > 0 %}
-  <div class="alert-ng-banner mb-3">
+  <div class="alert-ng-banner mb-2">
     <div class="alert-ng-message">
       <i class="bi bi-exclamation-triangle"></i>
       <span>未照合の受注が <strong>{{ ng }}</strong> 件あります。受注一覧で確認してください。</span>
     </div>
     <a href="{{ url_for('orders.list_orders') }}" class="alert-ng-link">→ 受注一覧</a>
+  </div>
+  {% endif %}
+
+  {% if delay_overdue > 0 or delay_critical > 0 %}
+  <div class="alert-ng-banner mb-3" style="background:linear-gradient(135deg,#7B0F0F,#B91C1C);">
+    <div class="alert-ng-message">
+      <i class="bi bi-alarm-fill"></i>
+      <span>
+        {% if delay_overdue > 0 %}<strong>出荷日超過 {{ delay_overdue }}件</strong>　{% endif %}
+        {% if delay_critical > 0 %}出荷日まで3日以内 <strong>{{ delay_critical }}件</strong>{% endif %}
+        の未完了工程があります。
+      </span>
+    </div>
+    <a href="{{ url_for('delay.index') }}" class="alert-ng-link">→ 遅延リスク一覧</a>
   </div>
   {% endif %}
 
