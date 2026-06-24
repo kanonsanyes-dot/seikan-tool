@@ -19,7 +19,7 @@
   {% endif %}
 
   {% if delay_overdue > 0 or delay_critical > 0 %}
-  <div class="alert-ng-banner mb-3" style="background:linear-gradient(135deg,#7B0F0F,#B91C1C);">
+  <div class="alert-ng-banner mb-3" style="background:#FEF2F2;border-color:#FECACA;">
     <div class="alert-ng-message">
       <i class="bi bi-alarm-fill"></i>
       <span>
@@ -46,7 +46,7 @@
   <div class="kpi-grid">
     <div class="kpi-card kpi-blue">
       <div class="kpi-label">
-        <i class="bi bi-box-seam"></i>
+        <span class="kpi-icon"><i class="bi bi-inbox-fill"></i></span>
         <span>受注件数</span>
       </div>
       <div class="kpi-value">{{ total }}</div>
@@ -55,7 +55,7 @@
 
     <div class="kpi-card kpi-green">
       <div class="kpi-label">
-        <i class="bi bi-check-circle"></i>
+        <span class="kpi-icon"><i class="bi bi-check-circle-fill"></i></span>
         <span>照合OK</span>
       </div>
       <div class="kpi-value">{{ ok }}</div>
@@ -64,7 +64,7 @@
 
     <div class="kpi-card kpi-red {% if ng > 0 %}kpi-alert{% endif %}">
       <div class="kpi-label">
-        <i class="bi bi-exclamation-triangle"></i>
+        <span class="kpi-icon"><i class="bi bi-exclamation-circle-fill"></i></span>
         <span>未照合</span>
       </div>
       <div class="kpi-value">{{ ng }}</div>
@@ -73,16 +73,16 @@
 
     <div class="kpi-card kpi-purple">
       <div class="kpi-label">
-        <i class="bi bi-truck"></i>
+        <span class="kpi-icon"><i class="bi bi-box-seam-fill"></i></span>
         <span>今月出荷数量</span>
       </div>
       <div class="kpi-value">{{ "{:,}".format(this_month_qty or 0) }}</div>
       <div class="kpi-sub">pcs</div>
     </div>
 
-    <div class="kpi-card {% if bottleneck %}kpi-red kpi-alert{% else %}kpi-green{% endif %}">
+    <div class="kpi-card {% if bottleneck %}kpi-red kpi-alert{% else %}kpi-cyan{% endif %}">
       <div class="kpi-label">
-        <i class="bi bi-speedometer"></i>
+        <span class="kpi-icon"><i class="bi bi-activity"></i></span>
         <span>ボトルネック工程</span>
       </div>
       <div class="kpi-value" style="font-size:1rem;word-break:break-all;">{{ bottleneck or "なし" }}</div>
