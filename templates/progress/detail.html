@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}工程詳細 #{{ p.progress_id }} - SeikanTool{% endblock %}
+{%- block h1 -%}工程詳細{%- endblock -%}
+
+{% block head %}
+<style>
+.detail-page { max-width: 960px; margin: 0 auto; }
+.section-card { background:#fff; border:1px solid #E2E8F0; border-radius:12px; padding:20px 24px; margin-bottom:16px; }
+.section-title { font-size:.7rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#94A3B8; margin-bottom:12px; }
+.kv-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px 24px; }
+.kv { display:flex; flex-direction:column; gap:2px; }
+.kv-label { font-size:.7rem; color:#94A3B8; font-weight:600; }
+.kv-value { font-size:.9rem; color:#1E293B; font-weight:500; }
+.kv-value.big { font-size:1.2rem; font-weight:700; }
+.status-pill { display:inline-block; border-radius:999px; padding:3px 14px; font-size:.8rem; font-weight:600; }
+.st-not-started { background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; }
+.st-inprogress  { background:#DBEAFE; color:#1D4ED8; border:1px solid #93C5FD; }
+.st-done        { background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; }
+.st-late        { background:#FEE2E2; color:#B91C1C; border:1px solid #FCA5A5; }
+.pct-bar-wrap { background:#E2E8F0; border-radius:999px; height:10px; overflow:hidden; margin-top:4px; }
+.pct-bar-fill { height:100%; border-radius:999px; background:#3B82F6; transition:width .4s; }
+.pct-bar-fill.done { background:#22C55E; }
+.order-sibling { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:8px; border:1px solid #E2E8F0; font-size:.82rem; margin-bottom:6px; }
+.order-sibling.current { background:#EFF6FF; border-color:#93C5FD; }
+.edit-inline input, .edit-inline select, .edit-inline textarea { font-size:.85rem; }
+.print-only { display:none; }
+@media print {
+  .no-print { display:none!important; }
+  .print-only { display:block; }
+  .section-card { border:1px solid #ccc; page-break-inside:avoid; }
+}
+</style>
+{% endblock %}
+
+{% set is_overdue = p.end_date and p.end_date < today and p.status != '完了' %}
+{% set status_class = 'st-late' if is_overdue or p.status == '遅延' else ('st-done' if p.status == '完了' else ('st-inprogress' if p.status == '進行中' else 'st-not-started')) %}
+{% set pct = ((p.completed_qty or 0) / p.quantity * 100) | int if p.quantity else 0 %}
+
+{% block content %}
+<div class="detail-page">
+
+  {# ── ヘッダーアクションバー ── #}
+  <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.close()">
+        <i class="bi bi-x-lg"></i> 閉じる
+      </button>
+      <a href="{{ url_for('progress.index') }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-grid-3x3-gap"></i> 進捗ボードへ
+      </a>
+      <button type="button" class="btn btn-sm btn-outline-dark" onclick="window.print()">
+        <i class="bi bi-printer"></i> 印刷
+      </button>
+    </div>
+    <span class="text-muted small">最終確認: {{ today }}</span>
+  </div>
+
+  {# ── ステータスサマリー ── #}
+  <div class="section-card" style="background:linear-gradient(135deg,#F8FAFC,#EFF6FF);">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+      <div>
+        <div class="kv-label mb-1">工程</div>
+        <div style="font-size:1.4rem;font-weight:800;color:#1E293B;">{{ p.process_name }}</div>
+        <div class="mt-1 d-flex gap-2 align-items-center">
+          <span class="status-pill {{ status_class }}">
+            {{ '遅延' if is_overdue else p.status }}
+          </span>
+          {% if is_overdue %}<span class="text-danger small fw-bold">⚠ 出荷日超過</span>{% endif %}
+        </div>
+      </div>
+      <div class="text-end">
+        <div class="kv-label">進捗率</div>
+        <div style="font-size:2rem;font-weight:900;color:{% if pct>=100 %}#15803D{% elif pct>0 %}#1D4ED8{% else %}#94A3B8{% endif %}">{{ pct }}%</div>
+        <div class="pct-bar-wrap" style="width:140px;margin-left:auto;">
+          <div class="pct-bar-fill {% if pct>=100 %}done{% endif %}" style="width:{{ pct }}%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── 受注情報 ── #}
+  <div class="section-card">
+    <div class="section-title"><i class="bi bi-box-seam me-1"></i>受注情報</div>
+    <div class="kv-grid">
+      <div class="kv"><span class="kv-label">受注 ID</span><span class="kv-value">#{{ order.order_id }}</span></div>
+      {% if order.order_no %}<div class="kv"><span class="kv-label">注文番号</span><span class="kv-value">{{ order.order_no }}</span></div>{% endif %}
+      <div class="kv"><span class="kv-label">品名</span><span class="kv-value fw-bold">{{ order.product_name }}</span></div>
+      {% if order.process_product_name %}<div class="kv"><span class="kv-label">工程品名</span><span class="kv-value">{{ order.process_product_name }}</span></div>{% endif %}
+      <div class="kv"><span class="kv-label">出荷先</span><span class="kv-value">{{ order.customer }}</span></div>
+      <div class="kv"><span class="kv-label">出荷日</span><span class="kv-value {% if order.ship_date and order.ship_date < today %}text-danger fw-bold{% endif %}">{{ order.ship_date or '—' }}</span></div>
+      <div class="kv"><span class="kv-label">受注数</span><span class="kv-value big">{{ "{:,}".format(order.quantity or 0) }} <small class="fw-normal text-muted">pcs</small></span></div>
+      {% if order.remaining_qty is not none %}<div class="kv"><span class="kv-label">注残数</span><span class="kv-value big text-warning">{{ "{:,}".format(order.remaining_qty) }} <small class="fw-normal text-muted">pcs</small></span></div>{% endif %}
+      {% if order.product_category %}<div class="kv"><span class="kv-label">製品区分</span><span class="kv-value">{{ order.product_category }}</span></div>{% endif %}
+      <div class="kv"><span class="kv-label">受注ステータス</span><span class="kv-value">{{ order.status or '—' }}</span></div>
+      {% if order.data_quality %}<div class="kv"><span class="kv-label">データ品質</span>
+        <span class="kv-value {% if order.data_quality in ['品名未登録','客先未登録','工程標準未登録'] %}text-danger{% elif order.data_quality == '照合OK' %}text-success{% endif %}">{{ order.data_quality }}</span>
+      </div>{% endif %}
+    </div>
+  </div>
+
+  {# ── 工程詳細 ── #}
+  <div class="section-card">
+    <div class="section-title"><i class="bi bi-tools me-1"></i>工程情報</div>
+    <div class="kv-grid">
+      <div class="kv"><span class="kv-label">工程名</span><span class="kv-value fw-bold">{{ p.process_name }}</span></div>
+      <div class="kv"><span class="kv-label">工程順</span><span class="kv-value">{{ p.process_order }}</span></div>
+      <div class="kv"><span class="kv-label">担当部署</span><span class="kv-value">{{ p.department or '—' }}</span></div>
+      <div class="kv"><span class="kv-label">予定開始日</span><span class="kv-value">{{ p.start_date or '—' }}</span></div>
+      <div class="kv"><span class="kv-label">予定終了日</span><span class="kv-value {% if is_overdue %}text-danger fw-bold{% endif %}">{{ p.end_date or '—' }}</span></div>
+      <div class="kv"><span class="kv-label">実績終了日</span><span class="kv-value">{{ p.actual_end_date or '—' }}</span></div>
+      <div class="kv"><span class="kv-label">工程数量</span><span class="kv-value big">{{ "{:,}".format(p.quantity or 0) }} <small class="fw-normal text-muted">pcs</small></span></div>
+      <div class="kv"><span class="kv-label">完了数量</span><span class="kv-value big {% if pct>=100 %}text-success{% endif %}">{{ "{:,}".format(p.completed_qty or 0) }} <small class="fw-normal text-muted">pcs</small></span></div>
+      <div class="kv">
+        <span class="kv-label">進捗率</span>
+        <span class="kv-value big {% if pct>=100 %}text-success{% elif pct>0 %}text-primary{% else %}text-muted{% endif %}">{{ pct }}%</span>
+        <div class="pct-bar-wrap"><div class="pct-bar-fill {% if pct>=100 %}done{% endif %}" style="width:{{ pct }}%;"></div></div>
+      </div>
+    </div>
+    {% if p.remarks %}
+    <div class="mt-3">
+      <div class="kv-label mb-1">備考</div>
+      <div style="background:#F8FAFC;border-radius:8px;padding:10px 14px;font-size:.85rem;white-space:pre-wrap;">{{ p.remarks }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── 同受注の全工程一覧 ── #}
+  <div class="section-card">
+    <div class="section-title"><i class="bi bi-list-ol me-1"></i>同受注の全工程</div>
+    {% for sibling in order.processes | sort(attribute='process_order') %}
+    {% set sib_overdue = sibling.end_date and sibling.end_date < today and sibling.status != '完了' %}
+    {% set sib_pct = ((sibling.completed_qty or 0) / sibling.quantity * 100) | int if sibling.quantity else 0 %}
+    <div class="order-sibling {% if sibling.progress_id == p.progress_id %}current{% endif %}">
+      <div>
+        <span class="fw-semibold me-2">{{ sibling.process_order }}. {{ sibling.process_name }}</span>
+        <span class="badge {% if sibling.status == '進行中' %}bg-primary{% elif sibling.status == '完了' %}bg-success{% elif sib_overdue %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size:.6rem;">
+          {{ '遅延' if sib_overdue else sibling.status }}
+        </span>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted small">{{ sibling.start_date or '—' }} 〜 {{ sibling.end_date or '—' }}</span>
+        <span class="small fw-bold {% if sib_pct>=100 %}text-success{% elif sib_pct>0 %}text-primary{% else %}text-muted{% endif %}">{{ sib_pct }}%</span>
+        {% if sibling.progress_id != p.progress_id %}
+        <a href="{{ url_for('progress.detail', id=sibling.progress_id) }}" class="btn btn-xs btn-outline-secondary py-0 px-2 no-print" style="font-size:.7rem;">詳細</a>
+        {% else %}
+        <span class="badge bg-primary" style="font-size:.6rem;">現在</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── インライン編集フォーム ── #}
+  <div class="section-card no-print">
+    <div class="section-title"><i class="bi bi-pencil me-1"></i>進捗更新</div>
+    <form method="post" action="{{ url_for('progress.update', id=p.progress_id) }}" class="edit-inline">
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-3">
+          <label class="form-label small fw-bold">ステータス</label>
+          <select class="form-select form-select-sm" name="status">
+            {% for s in ['未着手','進行中','完了','遅延','保留'] %}
+            <option {% if p.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-2">
+          <label class="form-label small fw-bold">完了数量</label>
+          <input type="number" class="form-control form-control-sm" name="completed_qty" value="{{ p.completed_qty or 0 }}" min="0" max="{{ p.quantity }}">
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small fw-bold">実績終了日</label>
+          <input type="date" class="form-control form-control-sm" name="actual_end_date" value="{{ p.actual_end_date or '' }}">
+        </div>
+        <div class="col-sm-2">
+          <label class="form-label small fw-bold">担当部署</label>
+          <input type="text" class="form-control form-control-sm" name="department" value="{{ p.department or '' }}">
+        </div>
+        <div class="col-sm-2">
+          <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-check2"></i> 保存</button>
+        </div>
+      </div>
+      <div class="mt-2">
+        <label class="form-label small fw-bold">備考</label>
+        <textarea class="form-control form-control-sm" name="remarks" rows="2">{{ p.remarks or '' }}</textarea>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
