@@ -136,14 +136,44 @@ function renderHeader() {
   els.table.appendChild(row);
 }
 
+function statusBadgeHtml(status, quality) {
+  const statusMap = {
+    '受注中': 'bg-primary', '完了': 'bg-success', '調整中': 'bg-warning text-dark',
+    'キャンセル': 'bg-secondary',
+  };
+  const qualityMap = {
+    '照合OK': 'bg-success', '品名未登録': 'bg-danger', '客先未登録': 'bg-danger',
+    '工程標準未登録': 'bg-warning text-dark', '要確認': 'bg-warning text-dark',
+  };
+  let html = '';
+  if (status) html += `<span class="badge ${statusMap[status] || 'bg-secondary'} me-1" style="font-size:.6rem;">${escapeHtml(status)}</span>`;
+  if (quality && quality !== '未チェック') html += `<span class="badge ${qualityMap[quality] || 'bg-secondary'}" style="font-size:.6rem;">${escapeHtml(quality)}</span>`;
+  return html;
+}
+
 function renderOrderRow(order) {
   const row = makeEl('div', 'gantt-row gantt-order-row');
   const label = makeEl('div', 'gantt-label gantt-order-label');
   const marker = state.collapsed.has(order.order_id) ? '▸' : '▾';
+
+  const qty = order.remaining_qty != null
+    ? `注残 <strong>${order.remaining_qty.toLocaleString()}</strong> / 受注 ${(order.quantity || 0).toLocaleString()}`
+    : `受注数 <strong>${(order.quantity || 0).toLocaleString()}</strong>`;
+
   label.innerHTML = `
-    <div>
-      <div class="gantt-order-title">${marker} #${order.order_id} ${escapeHtml(order.product_name || '')}</div>
-      <div class="gantt-order-meta">${escapeHtml(order.customer || '')} / 出荷日 ${order.ship_date || '-'}</div>
+    <div style="width:100%">
+      <div class="gantt-order-title">
+        ${marker} #${order.order_id}
+        ${order.order_no ? `<span class="gantt-order-no">${escapeHtml(order.order_no)}</span>` : ''}
+        ${statusBadgeHtml(order.status, order.data_quality)}
+      </div>
+      <div class="gantt-order-product">${escapeHtml(order.product_name || '')}</div>
+      <div class="gantt-order-meta">
+        <span class="gantt-meta-item"><i class="bi bi-building"></i> ${escapeHtml(order.customer || '')}</span>
+        <span class="gantt-meta-item"><i class="bi bi-calendar-event"></i> 出荷 ${order.ship_date || '-'}</span>
+        <span class="gantt-meta-item"><i class="bi bi-boxes"></i> ${qty} pcs</span>
+        ${order.product_category ? `<span class="gantt-meta-item text-muted">${escapeHtml(order.product_category)}</span>` : ''}
+      </div>
     </div>`;
   label.addEventListener('click', () => {
     if (state.collapsed.has(order.order_id)) state.collapsed.delete(order.order_id);
@@ -161,9 +191,24 @@ function renderOrderRow(order) {
 function renderProcessRow(order, process) {
   const row = makeEl('div', 'gantt-row gantt-process-row');
   const label = makeEl('div', 'gantt-label gantt-process-label');
+
+  const pct = (process.completed_qty && process.quantity)
+    ? Math.min(100, Math.round(process.completed_qty / process.quantity * 100))
+    : null;
+
   label.innerHTML = `
-    <span class="gantt-process-name">${escapeHtml(process.process_name || '')}</span>
-    <span class="gantt-status-badge gantt-status-${statusClass(process)}">${escapeHtml(statusLabel(process))}</span>`;
+    <div style="width:100%">
+      <div class="d-flex align-items-center justify-content-between">
+        <span class="gantt-process-name">${escapeHtml(process.process_name || '')}</span>
+        <span class="gantt-status-badge gantt-status-${statusClass(process)}">${escapeHtml(statusLabel(process))}</span>
+      </div>
+      <div class="gantt-process-meta">
+        ${process.start_date ? `${process.start_date} 〜 ${process.end_date}` : ''}
+        ${pct !== null ? `<span class="gantt-pct-badge">${pct}%</span>` : ''}
+        ${process.department ? `<span class="text-muted ms-1">${escapeHtml(process.department)}</span>` : ''}
+      </div>
+      ${pct !== null ? `<div class="gantt-proc-bar"><div class="gantt-proc-bar-fill ${pct >= 100 ? 'done' : ''}" style="width:${pct}%"></div></div>` : ''}
+    </div>`;
   row.appendChild(label);
 
   const canvas = makeEl('div', 'gantt-canvas');
@@ -173,7 +218,7 @@ function renderProcessRow(order, process) {
     bar.dataset.progressId = process.progress_id;
     bar.style.left = `${offsetPx(process.start_date)}px`;
     bar.style.width = `${widthPx(process.start_date, process.end_date)}px`;
-    bar.title = `${process.process_name}: ${process.start_date} 〜 ${process.end_date}`;
+    bar.title = `${process.process_name}: ${process.start_date} 〜 ${process.end_date}\n数量: ${process.quantity}\n完了: ${process.completed_qty || 0}`;
     canvas.appendChild(bar);
     attachDrag(bar, process);
   }

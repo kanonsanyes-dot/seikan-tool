@@ -79,7 +79,7 @@
 }
 
 .gantt-table {
-  --label-width: 300px;
+  --label-width: 360px;
   --day-width: 32px;
   min-width: calc(var(--label-width) + var(--timeline-width, 1920px));
 }
@@ -150,29 +150,106 @@
 }
 
 .gantt-order-row {
-  min-height: 48px;
+  min-height: 64px;
 }
 
 .gantt-order-label {
   cursor: pointer;
+  align-items: flex-start;
+  padding: 8px 10px;
 }
 
 .gantt-order-title {
   color: #412402;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.gantt-order-no {
+  font-size: .7rem;
+  color: #854F0B;
+  background: #FEF3C7;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.gantt-order-product {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
+  color: #1E293B;
+  margin: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
 }
 
 .gantt-order-meta {
   color: #854F0B;
-  font-size: 11px;
+  font-size: 10px;
   margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gantt-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.gantt-meta-item i {
+  font-size: 10px;
 }
 
 .gantt-process-label {
   gap: 8px;
   padding-left: 28px;
   color: #633806;
+  align-items: flex-start;
+}
+
+.gantt-process-meta {
+  font-size: 10px;
+  color: #94A3B8;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gantt-pct-badge {
+  background: #DBEAFE;
+  color: #1E40AF;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: .68rem;
+  font-weight: 700;
+}
+
+.gantt-proc-bar {
+  height: 3px;
+  background: #E2E8F0;
+  border-radius: 2px;
+  margin-top: 3px;
+  overflow: hidden;
+}
+
+.gantt-proc-bar-fill {
+  height: 100%;
+  background: #3B82F6;
+  border-radius: 2px;
+  transition: width .3s;
+}
+
+.gantt-proc-bar-fill.done {
+  background: #22C55E;
 }
 
 .gantt-process-name {
@@ -287,7 +364,7 @@
   }
 
   .gantt-table {
-    --label-width: 240px;
+    --label-width: 280px;
   }
 
   .gantt-process-label {
