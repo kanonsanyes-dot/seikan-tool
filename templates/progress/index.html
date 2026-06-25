@@ -27,8 +27,8 @@
   padding-bottom: 12px;
 }
 .kanban-col {
-  min-width: 210px;
-  max-width: 230px;
+  min-width: 240px;
+  max-width: 260px;
   flex-shrink: 0;
   background: #F8FAFC;
   border-radius: 10px;
@@ -66,8 +66,11 @@
 .prog-card.status-done       { border-left: 3px solid #22C55E; opacity: .75; }
 .prog-card.status-delay      { border-left: 3px solid #EF4444; }
 .prog-card.status-pending    { border-left: 3px solid #D1D5DB; }
-.prog-card .card-customer { color: #64748B; font-size: .72rem; }
-.prog-card .card-product  { font-weight: 600; margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.prog-card .card-customer { color: #64748B; font-size: .72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.prog-card .card-product  { font-weight: 600; margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog-card .card-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; flex-wrap: nowrap; }
+.prog-card .card-header-left { min-width: 0; flex: 1; overflow: hidden; }
+.prog-card .card-badge-wrap { flex-shrink: 0; display: flex; align-items: center; gap: 2px; white-space: nowrap; }
 .prog-card .card-qty      { color: #475569; }
 .prog-card .card-date     { color: #94A3B8; font-size: .7rem; }
 .prog-card .card-date.overdue { color: #EF4444; font-weight: 700; }
@@ -169,14 +172,16 @@
            data-end="{{ r.end_date }}"
            data-remarks="{{ r.remarks or '' }}"
            onclick="openProgressModal(this)">
-        <div class="d-flex justify-content-between align-items-start">
-          <span class="card-customer">{{ r.order.customer }}</span>
-          <span class="ms-1">
+        <div class="card-header-row">
+          <div class="card-header-left">
+            <div class="card-customer">{{ r.order.customer }}</div>
+            <div class="card-product" title="{{ r.product_name }}">{{ r.product_name }}</div>
+          </div>
+          <div class="card-badge-wrap">
             {% if r.status == '進行中' %}<span class="horse-icon">🐎</span>{% endif %}
-            <span class="badge {% if r.status == '進行中' %}bg-primary{% elif r.status == '完了' %}bg-success{% elif is_overdue %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size:.65rem;">{{ r.status }}</span>
-          </span>
+            <span class="badge {% if r.status == '進行中' %}bg-primary{% elif r.status == '完了' %}bg-success{% elif is_overdue %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size:.65rem;">{{ r.status if not is_overdue else '遅延' }}</span>
+          </div>
         </div>
-        <div class="card-product" title="{{ r.product_name }}">{{ r.product_name }}</div>
         <div class="card-qty">{{ "{:,}".format(r.quantity) }} pcs {% if r.completed_qty %}/ 済 {{ "{:,}".format(r.completed_qty) }}{% endif %}</div>
         <div class="card-date {% if is_overdue %}overdue{% endif %}">
           {{ r.start_date }} 〜 {{ r.end_date }}
