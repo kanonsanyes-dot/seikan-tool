@@ -13,7 +13,25 @@
     <div class="col-auto"><button class="btn btn-outline-danger" id="btn-pdf">PDF出力</button></div>
   </div>
   <hr>
-  <form id="generateForm" class="row g-2"><div class="col-md-5"><select id="orderSelect" class="form-select"><option value="">工程カードを生成する受注</option>{% for o in orders %}<option value="{{o.order_id}}">#{{o.order_id}} {{o.product_name}} / {{o.customer}} / {{o.ship_date}}</option>{% endfor %}</select></div><div class="col-auto"><button class="btn btn-outline-info">選択受注の工程生成</button></div></form>
+  <div class="row g-2 align-items-center">
+    <div class="col-auto">
+      <button class="btn btn-warning" id="btn-generate-all">
+        <i class="bi bi-lightning-fill me-1"></i>全受注スケジュール一括生成
+      </button>
+    </div>
+    <div class="col-auto">
+      <div class="form-check form-switch mt-1">
+        <input class="form-check-input" type="checkbox" id="toggleLoad">
+        <label class="form-check-label" for="toggleLoad">負荷率表示</label>
+      </div>
+    </div>
+    <div class="col-auto ms-3 border-start ps-3">
+      <form id="generateForm" class="row g-2">
+        <div class="col-md-auto"><select id="orderSelect" class="form-select form-select-sm" style="min-width:320px"><option value="">工程カードを生成する受注を選択</option>{% for o in orders %}<option value="{{o.order_id}}" {% if o.order_id in scheduled_order_ids %}class="text-muted"{% endif %}>#{{o.order_id}} {{o.product_name}} / {{o.customer}} / {{o.ship_date}}{% if o.order_id in scheduled_order_ids %} ✓{% endif %}</option>{% endfor %}</select></div>
+        <div class="col-auto"><button class="btn btn-sm btn-outline-info">選択受注の工程生成</button></div>
+      </form>
+    </div>
+  </div>
 </div>
 <div class="card p-3"><div id="summary" class="mb-2 text-muted">表示対象を読み込みます。</div><div class="scheduler-scroll"><div id="timeline" class="timeline"></div></div><div id="loadWarnings" class="mt-3"></div></div>
 {% endblock %}
