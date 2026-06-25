@@ -1,5 +1,6 @@
 from __future__ import annotations
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from io import BytesIO
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from database import db, commit_or_rollback
 from models import Customer, Product, ProductProcessStandard, ProcessCapacity, ProcessMaster, DEFAULT_PROCESSES, Order
 from services.quality_check_service import recheck_all
@@ -289,3 +290,323 @@ def download_capacity_template():
     except Exception as e:
         flash(f"テンプレート生成エラー: {e}", "danger")
         return redirect(url_for("masters.process_masters"))
+
+
+# ─── 共通ヘルパー ─────────────────────────────────────────────────
+
+def _make_wb(title, headers, rows, col_widths=None):
+    """ヘッダ付きスタイル済みワークブックを返す"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    wb = Workbook()
+    ws = wb.active
+    ws.title = title
+    fill = PatternFill("solid", fgColor="1D4ED8")
+    font = Font(bold=True, color="FFFFFF")
+    ws.append(headers)
+    for i in range(1, len(headers) + 1):
+        c = ws.cell(1, i)
+        c.fill = fill; c.font = font; c.alignment = Alignment(horizontal="center")
+    for row in rows:
+        ws.append(row)
+    if col_widths:
+        from openpyxl.utils import get_column_letter
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+    return wb
+
+
+def _wb_to_response(wb, filename):
+    buf = BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+def _parse_upload(f):
+    """アップロードされたファイル（xlsx / csv）を [[セル, ...], ...] として返す (ヘッダ行除く)"""
+    import os, csv
+    fname = (f.filename or "").lower()
+    raw = f.read()
+    if fname.endswith(".csv"):
+        import io
+        for enc in ("utf-8-sig", "cp932", "utf-8"):
+            try:
+                text = raw.decode(enc)
+                break
+            except UnicodeDecodeError:
+                continue
+        reader = csv.reader(io.StringIO(text))
+        rows = list(reader)
+        return rows[1:] if rows else []
+    else:
+        from openpyxl import load_workbook
+        wb = load_workbook(BytesIO(raw), data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(min_row=2, values_only=True))
+        return [list(r) for r in rows]
+
+
+def _str(v, default=""):
+    return str(v).strip() if v is not None else default
+
+
+def _float(v, default=0.0):
+    try: return float(v)
+    except (TypeError, ValueError): return default
+
+
+def _int(v, default=0):
+    try: return int(float(v))
+    except (TypeError, ValueError): return default
+
+
+# ─── 出荷先マスタ Import / Export ─────────────────────────────────
+
+@masters_bp.route("/customers/template")
+def customers_template():
+    rows = [[c.customer_name, "1" if c.is_active else "0"]
+            for c in Customer.query.order_by(Customer.customer_name).all()]
+    wb = _make_wb("出荷先マスタ",
+                  ["出荷先名", "有効(1=有効/0=無効)"],
+                  rows, [30, 18])
+    return _wb_to_response(wb, "出荷先マスタ_テンプレート.xlsx")
+
+
+@masters_bp.route("/customers/import", methods=["POST"])
+def import_customers():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        flash("ファイルを選択してください。", "danger")
+        return redirect(url_for("masters.customers"))
+    try:
+        added = updated = skipped = 0
+        for row in _parse_upload(f):
+            name = _str(row[0] if row else "")
+            if not name:
+                continue
+            active = _int(row[1] if len(row) > 1 else 1, 1) != 0
+            existing = Customer.query.filter_by(customer_name=name).first()
+            if existing:
+                existing.is_active = active; updated += 1
+            else:
+                db.session.add(Customer(customer_name=name, is_active=active)); added += 1
+        commit_or_rollback(); cache_service.clear()
+        flash(f"出荷先マスタ取込: 追加 {added}件 / 更新 {updated}件", "success")
+    except Exception as e:
+        db.session.rollback(); flash(f"取込エラー: {e}", "danger")
+    return redirect(url_for("masters.customers"))
+
+
+# ─── 品名マスタ Import / Export ───────────────────────────────────
+
+@masters_bp.route("/products/template")
+def products_template():
+    rows = [[p.product_name, p.process_product_name or "", "1" if p.is_active else "0"]
+            for p in Product.query.order_by(Product.product_name).all()]
+    wb = _make_wb("品名マスタ",
+                  ["品名", "工程品名", "有効(1=有効/0=無効)"],
+                  rows, [30, 30, 18])
+    return _wb_to_response(wb, "品名マスタ_テンプレート.xlsx")
+
+
+@masters_bp.route("/products/import", methods=["POST"])
+def import_products():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        flash("ファイルを選択してください。", "danger")
+        return redirect(url_for("masters.products"))
+    try:
+        added = updated = 0
+        for row in _parse_upload(f):
+            name = _str(row[0] if row else "")
+            if not name:
+                continue
+            proc_name = _str(row[1] if len(row) > 1 else "")
+            active = _int(row[2] if len(row) > 2 else 1, 1) != 0
+            existing = Product.query.filter_by(product_name=name).first()
+            if existing:
+                existing.process_product_name = proc_name or existing.process_product_name
+                existing.is_active = active; updated += 1
+            else:
+                db.session.add(Product(product_name=name, process_product_name=proc_name or None, is_active=active))
+                added += 1
+        commit_or_rollback(); cache_service.clear()
+        flash(f"品名マスタ取込: 追加 {added}件 / 更新 {updated}件", "success")
+    except Exception as e:
+        db.session.rollback(); flash(f"取込エラー: {e}", "danger")
+    return redirect(url_for("masters.products"))
+
+
+# ─── 工程標準 Import / Export ─────────────────────────────────────
+
+@masters_bp.route("/process-standards/template")
+def standards_template():
+    rows = [[s.product_name, s.process_product_name or "", s.process_name,
+             s.process_order, s.standard_time_min or 0, s.daily_capacity or 0,
+             s.lot_size or 0, s.remarks or ""]
+            for s in ProductProcessStandard.query.order_by(
+                ProductProcessStandard.product_name,
+                ProductProcessStandard.process_order).all()]
+    wb = _make_wb("工程標準",
+                  ["品名", "工程品名", "工程名", "工程順", "標準時間(分/個)", "日産数", "ロットサイズ", "備考"],
+                  rows, [30, 30, 18, 8, 16, 10, 12, 20])
+    return _wb_to_response(wb, "工程標準_テンプレート.xlsx")
+
+
+@masters_bp.route("/process-standards/import", methods=["POST"])
+def import_standards():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        flash("ファイルを選択してください。", "danger")
+        return redirect(url_for("masters.standards"))
+    try:
+        added = updated = 0
+        for row in _parse_upload(f):
+            product_name = _str(row[0] if row else "")
+            process_name = _str(row[2] if len(row) > 2 else "")
+            if not product_name or not process_name:
+                continue
+            existing = ProductProcessStandard.query.filter_by(
+                product_name=product_name, process_name=process_name).first()
+            if existing:
+                existing.process_product_name = _str(row[1] if len(row) > 1 else "") or existing.process_product_name
+                existing.process_order = _int(row[3] if len(row) > 3 else existing.process_order, existing.process_order)
+                existing.standard_time_min = _float(row[4] if len(row) > 4 else 0)
+                existing.daily_capacity = _int(row[5] if len(row) > 5 else 0)
+                existing.lot_size = _int(row[6] if len(row) > 6 else 0)
+                existing.remarks = _str(row[7] if len(row) > 7 else "")
+                updated += 1
+            else:
+                db.session.add(ProductProcessStandard(
+                    product_name=product_name,
+                    process_product_name=_str(row[1] if len(row) > 1 else "") or None,
+                    process_name=process_name,
+                    process_order=_int(row[3] if len(row) > 3 else 1, 1),
+                    standard_time_min=_float(row[4] if len(row) > 4 else 0),
+                    daily_capacity=_int(row[5] if len(row) > 5 else 0),
+                    lot_size=_int(row[6] if len(row) > 6 else 0),
+                    remarks=_str(row[7] if len(row) > 7 else ""),
+                    is_active=True,
+                ))
+                added += 1
+        commit_or_rollback(); cache_service.clear()
+        flash(f"工程標準取込: 追加 {added}件 / 更新 {updated}件", "success")
+    except Exception as e:
+        db.session.rollback(); flash(f"取込エラー: {e}", "danger")
+    return redirect(url_for("masters.standards"))
+
+
+# ─── 工程キャパ Import / Export ───────────────────────────────────
+
+@masters_bp.route("/process-capacity/template")
+def capacity_template():
+    rows = [[c.process_name, c.work_date.isoformat() if c.work_date else "",
+             c.available_hours or 8, c.overtime_hours or 0,
+             c.workers or 1, c.capacity_quantity or 0, c.remarks or ""]
+            for c in ProcessCapacity.query.order_by(
+                ProcessCapacity.work_date.desc(),
+                ProcessCapacity.process_name).limit(500).all()]
+    wb = _make_wb("工程キャパ",
+                  ["工程名", "稼働日(YYYY-MM-DD)", "定時h", "残業h", "人員", "処理数量", "備考"],
+                  rows, [20, 20, 10, 10, 8, 12, 20])
+    return _wb_to_response(wb, "工程キャパ_テンプレート.xlsx")
+
+
+@masters_bp.route("/process-capacity/import", methods=["POST"])
+def import_capacity():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        flash("ファイルを選択してください。", "danger")
+        return redirect(url_for("masters.capacity"))
+    try:
+        added = updated = skipped = 0
+        for row in _parse_upload(f):
+            process_name = _str(row[0] if row else "")
+            date_raw = _str(row[1] if len(row) > 1 else "")
+            if not process_name or not date_raw:
+                skipped += 1; continue
+            try:
+                work_date = datetime.fromisoformat(date_raw).date()
+            except ValueError:
+                skipped += 1; continue
+            existing = ProcessCapacity.query.filter_by(
+                process_name=process_name, work_date=work_date).first()
+            if existing:
+                existing.available_hours = _float(row[2] if len(row) > 2 else 8, 8)
+                existing.overtime_hours  = _float(row[3] if len(row) > 3 else 0)
+                existing.workers         = _int(row[4] if len(row) > 4 else 1, 1)
+                existing.capacity_quantity = _int(row[5] if len(row) > 5 else 0)
+                existing.remarks         = _str(row[6] if len(row) > 6 else "")
+                updated += 1
+            else:
+                db.session.add(ProcessCapacity(
+                    process_name=process_name, work_date=work_date,
+                    available_hours=_float(row[2] if len(row) > 2 else 8, 8),
+                    overtime_hours=_float(row[3] if len(row) > 3 else 0),
+                    workers=_int(row[4] if len(row) > 4 else 1, 1),
+                    capacity_quantity=_int(row[5] if len(row) > 5 else 0),
+                    remarks=_str(row[6] if len(row) > 6 else ""),
+                ))
+                added += 1
+        commit_or_rollback(); cache_service.clear()
+        msg = f"工程キャパ取込: 追加 {added}件 / 更新 {updated}件"
+        if skipped: msg += f" / スキップ {skipped}件"
+        flash(msg, "success")
+    except Exception as e:
+        db.session.rollback(); flash(f"取込エラー: {e}", "danger")
+    return redirect(url_for("masters.capacity"))
+
+
+# ─── 工程マスタ Import / Export ───────────────────────────────────
+
+@masters_bp.route("/process-masters/template")
+def process_masters_template():
+    rows = [[pm.process_name, pm.hours_per_day, pm.overtime_hours,
+             pm.pace_per_hour, pm.display_order, "1" if pm.is_active else "0", pm.remarks or ""]
+            for pm in ProcessMaster.query.order_by(ProcessMaster.display_order).all()]
+    wb = _make_wb("工程マスタ",
+                  ["工程名", "定時h/日", "残業h/日", "pcs/h(ペース)", "表示順", "有効(1/0)", "備考"],
+                  rows, [20, 10, 10, 14, 8, 10, 20])
+    return _wb_to_response(wb, "工程マスタ_テンプレート.xlsx")
+
+
+@masters_bp.route("/process-masters/import", methods=["POST"])
+def import_process_masters():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        flash("ファイルを選択してください。", "danger")
+        return redirect(url_for("masters.process_masters"))
+    try:
+        added = updated = 0
+        for row in _parse_upload(f):
+            name = _str(row[0] if row else "")
+            if not name:
+                continue
+            existing = ProcessMaster.query.filter_by(process_name=name).first()
+            if existing:
+                existing.hours_per_day   = _float(row[1] if len(row) > 1 else existing.hours_per_day, existing.hours_per_day)
+                existing.overtime_hours  = _float(row[2] if len(row) > 2 else 0)
+                existing.pace_per_hour   = _int(row[3] if len(row) > 3 else 0)
+                if len(row) > 4 and row[4] is not None:
+                    existing.display_order = _int(row[4], existing.display_order)
+                existing.is_active       = _int(row[5] if len(row) > 5 else 1, 1) != 0
+                existing.remarks         = _str(row[6] if len(row) > 6 else "")
+                updated += 1
+            else:
+                last = ProcessMaster.query.order_by(ProcessMaster.display_order.desc()).first()
+                ord_ = _int(row[4] if len(row) > 4 else None, (last.display_order + 1) if last else 1)
+                db.session.add(ProcessMaster(
+                    process_name=name,
+                    hours_per_day=_float(row[1] if len(row) > 1 else 8, 8),
+                    overtime_hours=_float(row[2] if len(row) > 2 else 0),
+                    pace_per_hour=_int(row[3] if len(row) > 3 else 0),
+                    display_order=ord_,
+                    is_active=_int(row[5] if len(row) > 5 else 1, 1) != 0,
+                    remarks=_str(row[6] if len(row) > 6 else ""),
+                ))
+                added += 1
+        commit_or_rollback(); cache_service.clear()
+        flash(f"工程マスタ取込: 追加 {added}件 / 更新 {updated}件", "success")
+    except Exception as e:
+        db.session.rollback(); flash(f"取込エラー: {e}", "danger")
+    return redirect(url_for("masters.process_masters"))
