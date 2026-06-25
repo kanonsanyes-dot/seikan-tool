@@ -1,8 +1,8 @@
 from __future__ import annotations
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, jsonify
 from sqlalchemy import func
 from database import db
-from models import Order
+from models import Order, WorkOrderProcess
 from services.export_service import summary_excel
 
 reports_bp=Blueprint("reports", __name__, url_prefix="/reports")
@@ -65,6 +65,47 @@ def summary():
         month=month,
         monthly_scope=monthly_scope,
     )
+
+@reports_bp.route("/yield")
+def yield_report():
+    """歩留まりレポート: 工程別・品名別の不良率集計"""
+    rows = db.session.query(
+        WorkOrderProcess.process_name,
+        func.sum(WorkOrderProcess.input_quantity).label("input"),
+        func.sum(WorkOrderProcess.good_quantity).label("good"),
+        func.sum(WorkOrderProcess.defect_quantity).label("defect"),
+    ).filter(
+        WorkOrderProcess.input_quantity > 0
+    ).group_by(WorkOrderProcess.process_name).order_by(WorkOrderProcess.process_name).all()
+
+    by_product = db.session.query(
+        WorkOrderProcess.work_order.has(),  # joined elsewhere
+    )
+    # 品名別（WorkOrderを介して）
+    from models import WorkOrder
+    by_product = db.session.query(
+        WorkOrder.product_name,
+        func.sum(WorkOrderProcess.input_quantity).label("input"),
+        func.sum(WorkOrderProcess.good_quantity).label("good"),
+        func.sum(WorkOrderProcess.defect_quantity).label("defect"),
+    ).join(WorkOrderProcess, WorkOrderProcess.work_order_id == WorkOrder.work_order_id
+    ).filter(WorkOrderProcess.input_quantity > 0
+    ).group_by(WorkOrder.product_name).order_by(func.sum(WorkOrderProcess.input_quantity).desc()).limit(20).all()
+
+    def calc(r):
+        inp = r.input or 0
+        good = r.good or 0
+        defect = r.defect or 0
+        yield_rate = round(good / inp * 100, 1) if inp else None
+        defect_rate = round(defect / inp * 100, 1) if inp else None
+        return {"input": inp, "good": good, "defect": defect,
+                "yield_rate": yield_rate, "defect_rate": defect_rate}
+
+    by_process = [{"process_name": r.process_name, **calc(r)} for r in rows]
+    by_product_data = [{"product_name": r.product_name, **calc(r)} for r in by_product]
+    return render_template("reports/yield.html",
+                           by_process=by_process, by_product=by_product_data)
+
 
 @reports_bp.route("/summary/export")
 def export_summary():

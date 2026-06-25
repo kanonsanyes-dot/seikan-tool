@@ -19,6 +19,16 @@ class Order(db.Model, TimestampMixin):
     quantity = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(20), default="受注中")
     data_quality = db.Column(db.String(50), default="未チェック")
+    # 拡張フィールド（受注Excelインポート対応）
+    order_no = db.Column(db.String(100))
+    order_date = db.Column(db.Date)
+    remaining_qty = db.Column(db.Integer)
+    product_category = db.Column(db.String(100))
+    sales_category = db.Column(db.String(100))
+    sales_person = db.Column(db.String(100))
+    unit_price = db.Column(db.Float)
+    amount = db.Column(db.Float)
+    remarks = db.Column(db.Text)
     schedules = db.relationship("Schedule", backref="order", cascade="all, delete-orphan", lazy=True)
     progresses = db.relationship("ProcessProgress", backref="order", cascade="all, delete-orphan", lazy=True)
     anomalies = db.relationship("Anomaly", backref="order", cascade="all, delete-orphan", lazy=True)
@@ -39,6 +49,23 @@ class Product(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=utc_now)
 
+DEFAULT_PROCESSES = [
+    "受注", "部材発注", "部材受入", "プレス工程", "外観検査",
+    "洗浄", "バレル", "めっき", "計量", "梱包", "出荷",
+]
+
+class ProcessMaster(db.Model, TimestampMixin):
+    __tablename__ = "process_masters"
+    process_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    process_name = db.Column(db.String(100), unique=True, nullable=False)
+    display_order = db.Column(db.Integer, default=0)
+    hours_per_day = db.Column(db.Float, default=8.0)
+    overtime_hours = db.Column(db.Float, default=0.0)
+    pace_per_hour = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    remarks = db.Column(db.Text)
+
+
 class ProductProcessStandard(db.Model, TimestampMixin):
     __tablename__ = "product_process_standards"
     __table_args__ = (
@@ -52,6 +79,8 @@ class ProductProcessStandard(db.Model, TimestampMixin):
     standard_time_min = db.Column(db.Float, default=0.0)
     daily_capacity = db.Column(db.Integer, default=0)
     lot_size = db.Column(db.Integer, default=0)
+    pace_per_hour = db.Column(db.Integer, default=0)
+    hours_per_run = db.Column(db.Float, default=8.0)
     is_active = db.Column(db.Boolean, default=True)
     remarks = db.Column(db.Text)
 
@@ -82,6 +111,7 @@ class ProcessProgress(db.Model, TimestampMixin):
     actual_end_date = db.Column(db.Date)
     ship_date = db.Column(db.Date)
     status = db.Column(db.String(20), default="未着手")
+    completed_qty = db.Column(db.Integer, default=0)
     department = db.Column(db.String(100))
     remarks = db.Column(db.Text)
 

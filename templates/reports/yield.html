@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}歩留まりレポート - SeikanTool{% endblock %}
+{%- block h1 -%}歩留まりレポート{%- endblock -%}
+
+{% block content %}
+<div class="row g-3">
+
+  {# ── 工程別 ── #}
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header py-2 fw-bold">
+        <i class="bi bi-bar-chart-steps me-1 text-primary"></i>工程別 歩留まり
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>工程</th>
+              <th class="text-end">投入数</th>
+              <th class="text-end">良品</th>
+              <th class="text-end">不良</th>
+              <th class="text-end">歩留率</th>
+              <th class="text-end">不良率</th>
+              <th style="min-width:100px">歩留バー</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in by_process %}
+            {% set yr = r.yield_rate or 0 %}
+            <tr>
+              <td>{{ r.process_name }}</td>
+              <td class="text-end">{{ "{:,}".format(r.input) }}</td>
+              <td class="text-end text-success">{{ "{:,}".format(r.good) }}</td>
+              <td class="text-end text-danger">{{ "{:,}".format(r.defect) }}</td>
+              <td class="text-end fw-bold {% if yr < 90 %}text-danger{% elif yr < 95 %}text-warning{% else %}text-success{% endif %}">
+                {{ r.yield_rate }}%
+              </td>
+              <td class="text-end">{{ r.defect_rate }}%</td>
+              <td>
+                <div class="progress" style="height:8px;">
+                  <div class="progress-bar {% if yr < 90 %}bg-danger{% elif yr < 95 %}bg-warning{% else %}bg-success{% endif %}"
+                       style="width:{{ yr }}%"></div>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-3">データがありません（工程管理票に実績数量を登録してください）</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# ── 品名別 ── #}
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header py-2 fw-bold">
+        <i class="bi bi-box-seam-fill me-1 text-success"></i>品名別 歩留まり（上位20品）
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>品名</th>
+              <th class="text-end">投入</th>
+              <th class="text-end">歩留率</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in by_product %}
+            {% set yr = r.yield_rate or 0 %}
+            <tr>
+              <td class="small" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ r.product_name }}">{{ r.product_name }}</td>
+              <td class="text-end">{{ "{:,}".format(r.input) }}</td>
+              <td class="text-end fw-bold {% if yr < 90 %}text-danger{% elif yr < 95 %}text-warning{% else %}text-success{% endif %}">
+                {{ r.yield_rate }}%
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-3">データなし</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# ── グラフ ── #}
+  <div class="col-12">
+    <div class="card p-3">
+      <h6 class="mb-2">工程別 歩留率グラフ</h6>
+      <canvas id="yieldChart" height="80"></canvas>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const labels = {{ by_process | map(attribute='process_name') | list | tojson }};
+const values = {{ by_process | map(attribute='yield_rate') | list | tojson }};
+const colors = values.map(v => v === null ? '#CBD5E1' : v < 90 ? '#EF4444' : v < 95 ? '#F59E0B' : '#22C55E');
+
+if (labels.length && document.getElementById('yieldChart')) {
+  new Chart(document.getElementById('yieldChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '歩留率 (%)',
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 4,
+        maxBarThickness: 48,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y + '%' } }
+      },
+      scales: {
+        y: {
+          min: 0, max: 100,
+          ticks: { callback: v => v + '%' },
+          grid: { color: '#F1F5F9' }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

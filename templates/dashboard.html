@@ -154,6 +154,17 @@
     </div>
   </div>
 
+  {# ── リアルタイムアラートパネル ── #}
+  <div id="liveAlertPanel" class="mb-3" style="display:none;">
+    <div class="card border-danger">
+      <div class="card-header bg-danger text-white py-2 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-bell-fill me-1"></i>アクティブアラート <span id="alertCount" class="badge bg-white text-danger ms-1">0</span></span>
+        <button class="btn btn-sm btn-outline-light py-0" onclick="document.getElementById('alertList').classList.toggle('d-none')">折りたたむ</button>
+      </div>
+      <div id="alertList" class="card-body py-2 px-3" style="font-size:.85rem;"></div>
+    </div>
+  </div>
+
   <div class="dashboard-main-grid">
     <div class="dashboard-panel">
       <div class="panel-header">
@@ -321,6 +332,27 @@
     .catch(() => {
       if (noDataEl) noDataEl.classList.remove('d-none');
     });
+
+  // ── アラートパネル ──
+  fetch('/api/alerts')
+    .then(r => r.json())
+    .then(data => {
+      const items = data.alerts || [];
+      if (!items.length) return;
+      document.getElementById('liveAlertPanel').style.display = '';
+      document.getElementById('alertCount').textContent = items.length;
+      const list = document.getElementById('alertList');
+      list.innerHTML = items.map(a =>
+        `<div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+          <span>
+            <span class="badge ${a.level==='danger'?'bg-danger':'bg-warning text-dark'} me-2">${a.category}</span>
+            ${a.message}
+          </span>
+          <a href="${a.url}" class="btn btn-sm btn-outline-secondary py-0 ms-3">→</a>
+        </div>`
+      ).join('');
+    })
+    .catch(() => {});
 
   window.addEventListener('beforeunload', function () {
     if (window._seikanCapacityChart) {

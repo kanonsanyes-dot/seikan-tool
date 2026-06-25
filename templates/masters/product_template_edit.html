@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}工程テンプレート編集 - {{ product_name }}{% endblock %}
+{% block h1 %}工程テンプレート — {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="mb-3">
+      <a href="{{ url_for('masters.product_templates') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>品名一覧に戻る
+      </a>
+    </div>
+
+    <form method="post" action="{{ url_for('masters.save_product_template', product_name=product_name) }}">
+      <div class="card">
+        <div class="card-header py-2">
+          <div class="fw-bold"><i class="bi bi-check2-square me-1 text-primary"></i>工程チェックボックス</div>
+          <div class="text-muted small">使用する工程にチェックを入れ、時間とペースを設定してください。</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width:40px;">順</th>
+                <th style="width:40px;">選択</th>
+                <th>工程名</th>
+                <th style="width:130px;">時間/ロット</th>
+                <th style="width:130px;">ペース (pcs/h)</th>
+                <th style="width:100px;">日産目安 (pcs)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pm in process_masters %}
+              {% set std = standards.get(pm.process_name) %}
+              {% set checked = std is not none and std.is_active %}
+              <tr class="process-row {% if checked %}table-primary{% endif %}" id="row_{{ pm.process_id }}">
+                <td class="text-muted small">{{ loop.index }}</td>
+                <td class="text-center">
+                  <input type="checkbox" name="processes" value="{{ pm.process_name }}"
+                         class="form-check-input process-check" data-pid="{{ pm.process_id }}"
+                         {% if checked %}checked{% endif %}
+                         onchange="toggleRow(this)">
+                </td>
+                <td class="fw-bold">{{ pm.process_name }}</td>
+                <td>
+                  <select name="hours_{{ pm.process_id }}" class="form-select form-select-sm process-input"
+                          {% if not checked %}disabled{% endif %}
+                          onchange="calcDaily({{ pm.process_id }})">
+                    {% for h in [1, 6, 8, 12] %}
+                    <option value="{{ h }}"
+                      {% if std and std.hours_per_run == h %}selected
+                      {% elif not std and pm.hours_per_day == h %}selected{% endif %}>
+                      {{ h }}h
+                    </option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input type="number" name="pace_{{ pm.process_id }}"
+                         class="form-control form-control-sm process-input"
+                         id="pace_{{ pm.process_id }}"
+                         value="{{ std.pace_per_hour if std else pm.pace_per_hour }}"
+                         min="0" placeholder="pcs/h"
+                         {% if not checked %}disabled{% endif %}
+                         oninput="calcDaily({{ pm.process_id }})">
+                </td>
+                <td class="text-muted small" id="daily_{{ pm.process_id }}">
+                  {% if std and std.daily_capacity %}{{ std.daily_capacity }}
+                  {% elif pm.pace_per_hour %}{{ (pm.hours_per_day * pm.pace_per_hour)|int }}
+                  {% else %}-{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="card-footer d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>テンプレートを保存
+          </button>
+          <a href="{{ url_for('masters.product_templates') }}" class="btn btn-outline-secondary">キャンセル</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleRow(checkbox) {
+  const pid = checkbox.dataset.pid;
+  const row = document.getElementById('row_' + pid);
+  const inputs = row.querySelectorAll('.process-input');
+  inputs.forEach(el => el.disabled = !checkbox.checked);
+  row.classList.toggle('table-primary', checkbox.checked);
+  row.classList.toggle('text-muted', !checkbox.checked);
+}
+
+function calcDaily(pid) {
+  const hoursEl = document.querySelector(`select[name="hours_${pid}"]`);
+  const paceEl = document.getElementById(`pace_${pid}`);
+  const dailyEl = document.getElementById(`daily_${pid}`);
+  if (!hoursEl || !paceEl || !dailyEl) return;
+  const h = parseFloat(hoursEl.value) || 0;
+  const p = parseInt(paceEl.value) || 0;
+  dailyEl.textContent = (h && p) ? (h * p).toFixed(0) : '-';
+}
+
+// 初期化: 全ての行の日産を計算
+document.querySelectorAll('[id^="pace_"]').forEach(el => {
+  const pid = el.id.replace('pace_', '');
+  calcDaily(parseInt(pid));
+});
+</script>
+{% endblock %}

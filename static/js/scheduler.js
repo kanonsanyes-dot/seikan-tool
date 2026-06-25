@@ -7,11 +7,24 @@ const CONFIG = {
 };
 
 const PROCESS_COLORS = {
-  'プレス': { bg: '#AFA9EC', border: '#534AB7', text: '#3C3489' },
-  'バレル': { bg: '#F4C0D1', border: '#993556', text: '#72243E' },
-  'めっき': { bg: '#B5D4F4', border: '#185FA5', text: '#0C447C' },
+  '受注':     { bg: '#E0F2FE', border: '#0284C7', text: '#075985' },
+  '部材発注': { bg: '#FEF9C3', border: '#CA8A04', text: '#92400E' },
+  '部材受入': { bg: '#FEF3C7', border: '#D97706', text: '#78350F' },
+  'プレス工程':{ bg: '#AFA9EC', border: '#534AB7', text: '#3C3489' },
+  'プレス':   { bg: '#AFA9EC', border: '#534AB7', text: '#3C3489' },
   '外観検査': { bg: '#FAC775', border: '#BA7517', text: '#633806' },
-  '出荷': { bg: '#C0DD97', border: '#3B6D11', text: '#27500A' },
+  '洗浄':     { bg: '#BAE6FD', border: '#0369A1', text: '#0C4A6E' },
+  'バレル':   { bg: '#F4C0D1', border: '#993556', text: '#72243E' },
+  'めっき':   { bg: '#B5D4F4', border: '#185FA5', text: '#0C447C' },
+  '計量':     { bg: '#D1FAE5', border: '#059669', text: '#064E3B' },
+  '梱包':     { bg: '#E9D5FF', border: '#7C3AED', text: '#4C1D95' },
+  '出荷':     { bg: '#C0DD97', border: '#3B6D11', text: '#27500A' },
+};
+
+// 負荷状態の状態管理
+const loadState = {
+  summary: null,
+  visible: false,
 };
 
 const els = {
@@ -26,6 +39,8 @@ const els = {
   generateForm: document.getElementById('generateForm'),
   btnLoad: document.getElementById('btn-load'),
   btnPdf: document.getElementById('btn-pdf'),
+  btnGenerateAll: document.getElementById('btn-generate-all'),
+  toggleLoad: document.getElementById('toggleLoad'),
 };
 
 const state = {
@@ -66,8 +81,18 @@ async function loadAndRender() {
   state.start = data.range?.start || fmtDate(new Date());
   state.end = data.range?.end || fmtDate(new Date(Date.now() + 90 * 86400000));
 
+  loadState.summary = null;
+
   renderTimeline();
   await applyQualityFlags(state.orders.map(o => o.order_id));
+
+  if (loadState.visible) {
+    const month = state.filters.month;
+    const url = month ? `/api/scheduler/load-summary?month=${month}` : '/api/scheduler/load-summary';
+    const res = await fetch(url);
+    loadState.summary = await res.json();
+    renderLoadWarnings();
+  }
 }
 
 function renderTimeline() {
@@ -398,18 +423,80 @@ function calcDailyLoad(processName) {
 }
 
 function renderLoadWarnings() {
-  let html = '<h6>負荷超過アラート</h6>';
+  const summary = loadState.summary;
+
+  // --- 負荷超過アラートバッジ ---
+  let html = '<div class="d-flex flex-wrap gap-1 align-items-center"><span class="fw-bold me-1 small">負荷アラート:</span>';
   let found = false;
-  [...new Set(state.schedules.map(s => s.process_name))].forEach(processName => {
-    const load = calcDailyLoad(processName);
-    Object.entries(load).forEach(([date, count]) => {
-      if (count >= 2) {
-        found = true;
-        html += `<span class="badge text-bg-warning me-1">${processName} ${date}: ${count}件重複</span>`;
-      }
+  if (summary) {
+    Object.entries(summary.daily || {}).forEach(([proc, days]) => {
+      Object.entries(days).forEach(([dateStr, info]) => {
+        if (info.status === 'over' || info.status === 'overtime') {
+          found = true;
+          const cls = info.status === 'over' ? 'text-bg-danger' : 'text-bg-warning';
+          html += `<span class="badge ${cls}">${proc} ${dateStr.slice(5)}: ${info.qty}/${info.capacity} (${info.load_pct}%)</span>`;
+        }
+      });
     });
+  } else {
+    [...new Set(state.schedules.map(s => s.process_name))].forEach(processName => {
+      const load = calcDailyLoad(processName);
+      Object.entries(load).forEach(([date, count]) => {
+        if (count >= 2) {
+          found = true;
+          html += `<span class="badge text-bg-warning">${processName} ${date}: ${count}件重複</span>`;
+        }
+      });
+    });
+  }
+  html += '</div>';
+  els.loadWarnings.innerHTML = found ? html : '<span class="text-muted small">負荷超過アラートなし</span>';
+
+  // --- 負荷率バー表示（トグルON時）---
+  document.querySelectorAll('.load-bar-row').forEach(el => el.remove());
+  if (!loadState.visible || !summary) return;
+
+  const processes = Object.keys(summary.daily || {});
+  if (!processes.length) return;
+
+  const tl = els.timeline;
+  const header = tl.querySelector('.timeline-header');
+
+  processes.forEach(proc => {
+    const days = summary.daily[proc];
+    if (!days) return;
+    const row = document.createElement('div');
+    row.className = 'timeline-row load-bar-row';
+    row.style.height = '28px';
+    row.style.minHeight = '28px';
+
+    const colorInfo = PROCESS_COLORS[proc] || { bg: '#E5E7EB', border: '#9CA3AF', text: '#374151' };
+    row.innerHTML = `
+      <div class="timeline-label" style="font-size:0.75rem;padding:2px 4px;background:${colorInfo.bg};color:${colorInfo.text};border-right:2px solid ${colorInfo.border}">
+        ${proc}<br><span style="font-size:0.65rem">負荷率</span>
+      </div>
+      <div class="timeline-canvas load-canvas"></div>`;
+
+    const canvas = row.querySelector('.load-canvas');
+
+    Object.entries(days).forEach(([dateStr, info]) => {
+      const d = parseDate(dateStr);
+      if (d < parseDate(state.start) || d > parseDate(state.end)) return;
+      const bar = document.createElement('div');
+      bar.style.position = 'absolute';
+      bar.style.left = `${offsetPx(dateStr)}px`;
+      bar.style.width = `${CONFIG.DAY_WIDTH - 1}px`;
+      bar.style.bottom = '0';
+      const pct = Math.min(info.load_pct || 0, 150);
+      bar.style.height = `${Math.round(pct / 150 * 24)}px`;
+      bar.style.background = info.status === 'over' ? '#EF4444' : info.status === 'overtime' ? '#F59E0B' : '#22C55E';
+      bar.style.opacity = '0.85';
+      bar.title = `${proc} ${dateStr}\n${info.qty}個 / cap ${info.capacity}\n負荷率 ${info.load_pct}%`;
+      canvas.appendChild(bar);
+    });
+
+    tl.insertBefore(row, header.nextSibling);
   });
-  els.loadWarnings.innerHTML = found ? html : '<span class="text-muted">負荷超過アラートなし</span>';
 }
 
 async function applyQualityFlags(orderIds) {
@@ -438,11 +525,49 @@ async function applyQualityFlags(orderIds) {
 }
 
 els.btnLoad.addEventListener('click', loadAndRender);
+
+els.btnGenerateAll.addEventListener('click', async () => {
+  const overwrite = confirm('既にスケジュール済みの受注も上書き再生成しますか？\n[OK] = 上書きあり  [キャンセル] = 未生成のみ');
+  els.btnGenerateAll.disabled = true;
+  els.btnGenerateAll.textContent = '生成中…';
+  try {
+    const res = await fetch('/api/scheduler/generate-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ overwrite }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert(`生成完了\n生成: ${data.generated}件  スキップ: ${data.skipped}件  エラー: ${data.errors}件`);
+      await loadAndRender();
+    } else {
+      alert('エラー: ' + (data.error || '不明'));
+    }
+  } catch (err) {
+    alert('通信エラー: ' + err.message);
+  } finally {
+    els.btnGenerateAll.disabled = false;
+    els.btnGenerateAll.innerHTML = '<i class="bi bi-lightning-fill me-1"></i>全受注スケジュール一括生成';
+  }
+});
+
+els.toggleLoad.addEventListener('change', async () => {
+  loadState.visible = els.toggleLoad.checked;
+  if (loadState.visible && !loadState.summary) {
+    const month = els.month.value;
+    const url = month ? `/api/scheduler/load-summary?month=${month}` : '/api/scheduler/load-summary';
+    const res = await fetch(url);
+    loadState.summary = await res.json();
+  }
+  renderLoadWarnings();
+});
+
 els.generateForm.addEventListener('submit', async e => {
   e.preventDefault();
   const id = els.orderSelect.value;
   if (!id) return;
   await fetch(`/api/scheduler/generate/${id}`, { method: 'POST' });
+  loadState.summary = null;
   await loadAndRender();
 });
 els.btnPdf.addEventListener('click', () => {

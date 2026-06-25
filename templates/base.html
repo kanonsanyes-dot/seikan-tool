@@ -30,7 +30,11 @@
       </a>
       <a class="sb-link {% if current_path == '/orders/import' %}sb-active{% endif %}"
          href="{{ url_for('orders.import_view') }}">
-        <i class="bi bi-cloud-arrow-up-fill"></i><span>受注取込</span>
+        <i class="bi bi-cloud-arrow-up-fill"></i><span>受注取込(CSV)</span>
+      </a>
+      <a class="sb-link {% if current_path == '/orders/import-xls' %}sb-active{% endif %}"
+         href="{{ url_for('orders.import_xls') }}">
+        <i class="bi bi-file-earmark-excel-fill"></i><span>受注取込(Excel)</span>
       </a>
       <a class="sb-link {% if current_path in ['/orders', '/orders/'] %}sb-active{% endif %}"
          href="{{ url_for('orders.list_orders') }}">
@@ -39,6 +43,10 @@
       <a class="sb-link {% if current_path == '/reports/summary' %}sb-active{% endif %}"
          href="{{ url_for('reports.summary') }}">
         <i class="bi bi-bar-chart-fill"></i><span>集計レポート</span>
+      </a>
+      <a class="sb-link {% if current_path == '/reports/yield' %}sb-active{% endif %}"
+         href="{{ url_for('reports.yield_report') }}">
+        <i class="bi bi-graph-up-arrow"></i><span>歩留まりレポート</span>
       </a>
       <a class="sb-link {% if current_path.startswith('/scheduler') or current_path.startswith('/api/scheduler') %}sb-active{% endif %}"
          href="{{ url_for('scheduler.scheduler_view') }}">
@@ -59,6 +67,7 @@
       <a class="sb-link {% if current_path.startswith('/delay') %}sb-active{% endif %}"
          href="{{ url_for('delay.index') }}">
         <i class="bi bi-exclamation-triangle-fill"></i><span>遅延リスク</span>
+        <span class="sb-alert-badge" id="sb-alert-total" style="display:none;"></span>
       </a>
       <a class="sb-link {% if current_path.startswith('/admin') %}sb-active{% endif %}"
          href="{{ url_for('admin.index') }}">
@@ -102,6 +111,14 @@
          href="{{ url_for('masters.capacity') }}">
         <i class="bi bi-people-fill"></i><span>工程キャパ</span>
       </a>
+      <a class="sb-link {% if '/masters/process-masters' in current_path %}sb-active{% endif %}"
+         href="{{ url_for('masters.process_masters') }}">
+        <i class="bi bi-gear-fill"></i><span>工程マスタ</span>
+      </a>
+      <a class="sb-link {% if '/masters/product-templates' in current_path %}sb-active{% endif %}"
+         href="{{ url_for('masters.product_templates') }}">
+        <i class="bi bi-grid-3x3-gap-fill"></i><span>工程テンプレート</span>
+      </a>
     </nav>
   </aside>
 
@@ -120,6 +137,21 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+// サイドバーアラートバッジ（全ページ共通）
+(function() {
+  fetch('/api/alerts')
+    .then(r => r.json())
+    .then(data => {
+      const total = data.total || 0;
+      if (total > 0) {
+        const badge = document.getElementById('sb-alert-total');
+        if (badge) { badge.textContent = total; badge.style.display = 'inline-flex'; }
+      }
+    })
+    .catch(() => {});
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
