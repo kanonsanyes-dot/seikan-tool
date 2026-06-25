@@ -1,24 +1,22 @@
 {% extends 'base.html' %}
 {%- block h1 -%}工程キャパマスタ{%- endblock -%}
 {% block content %}
-<style>
-.bulk-bar { display:none; gap:8px; align-items:center; }
-.bulk-bar.show { display:flex; }
-</style>
-
-{# ── インポート / テンプレートDL ── #}
-<div class="card p-3 mb-3">
-  <div class="d-flex gap-3 align-items-center flex-wrap">
-    <span class="fw-bold small text-muted">一括取込</span>
-    <a href="{{ url_for('masters.capacity_template') }}" class="btn btn-sm btn-outline-success">
-      <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
-    </a>
-    <form method="post" action="{{ url_for('masters.import_capacity') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
-      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:200px" required>
-      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
-    </form>
-    <span class="text-muted small">※ 工程名+稼働日が一致する場合は上書き</span>
-  </div>
+{# ── 取込バー ── #}
+<div class="import-bar">
+  <span class="import-label"><i class="bi bi-cloud-upload me-1"></i>一括取込</span>
+  <div class="divider"></div>
+  <a href="{{ url_for('masters.capacity_template') }}" class="btn btn-sm btn-outline-success">
+    <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
+  </a>
+  <form method="post" action="{{ url_for('masters.import_capacity') }}" enctype="multipart/form-data" class="file-upload-wrap">
+    <label class="file-label" for="importFileCap">
+      <i class="bi bi-folder2-open"></i> <span id="fileLabelCap">ファイルを選択</span>
+    </label>
+    <input type="file" id="importFileCap" name="file" accept=".xlsx,.csv"
+           onchange="document.getElementById('fileLabelCap').textContent=this.files[0]?.name||'ファイルを選択'">
+    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
+  </form>
+  <span class="text-muted" style="font-size:.75rem;">工程名+稼働日が一致する場合は上書き</span>
 </div>
 
 {# ── 追加フォーム ── #}
