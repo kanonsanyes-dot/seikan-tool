@@ -74,6 +74,9 @@ def _serialize_process(progress):
         "actual_end_date": _iso_or_none(progress.actual_end_date),
         "status": progress.status,
         "quantity": progress.quantity,
+        "completed_qty": progress.completed_qty or 0,
+        "department": progress.department or "",
+        "remarks": progress.remarks or "",
     }
 
 @progress_api_bp.route("/api/progress/gantt")
@@ -89,11 +92,18 @@ def gantt_data():
     for row in rows:
         order=row.order
         if order.order_id not in grouped:
-            grouped[order.order_id]={
+            grouped[order.order_id] = {
                 "order_id": order.order_id,
+                "order_no": order.order_no or "",
                 "product_name": order.product_name,
+                "process_product_name": order.process_product_name or "",
                 "customer": order.customer,
                 "ship_date": _iso_or_none(order.ship_date),
+                "quantity": order.quantity or 0,
+                "remaining_qty": order.remaining_qty,
+                "product_category": order.product_category or "",
+                "status": order.status or "受注中",
+                "data_quality": order.data_quality or "",
                 "processes": [],
             }
         grouped[order.order_id]["processes"].append(_serialize_process(row))
