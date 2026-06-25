@@ -1,43 +1,144 @@
-{% extends 'base.html' %}{%- block h1 -%}品名マスタ{%- endblock -%}{% block content %}
+{% extends 'base.html' %}
+{%- block h1 -%}品名マスタ{%- endblock -%}
+{% block content %}
+<style>
+.master-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.bulk-bar { display:none; gap:8px; align-items:center; }
+.bulk-bar.show { display:flex; }
+</style>
 
 {# ── インポート / テンプレートDL ── #}
 <div class="card p-3 mb-3">
-  <div class="d-flex align-items-center gap-3 flex-wrap">
-    <span class="fw-bold small text-muted">一括取込 (Excel / CSV)</span>
+  <div class="master-toolbar">
+    <span class="fw-bold small text-muted">一括取込</span>
     <a href="{{ url_for('masters.products_template') }}" class="btn btn-sm btn-outline-success">
       <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
     </a>
     <form method="post" action="{{ url_for('masters.import_products') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
-      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:220px" required>
+      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:200px" required>
       <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
     </form>
   </div>
 </div>
 
+{# ── 追加フォーム ── #}
 <form class="card p-3 mb-3 row g-2" method="post" action="{{ url_for('masters.add_product') }}">
   <div class="col"><input class="form-control" name="product_name" placeholder="品名"></div>
   <div class="col"><input class="form-control" name="process_product_name" placeholder="工程品名"></div>
   <div class="col-auto"><button type="submit" class="btn btn-primary">追加</button></div>
 </form>
-<div class="card p-3">
-  <table class="table table-sm">
-    <tr><th>ID</th><th>品名</th><th>工程品名</th><th>使用中</th><th>操作</th></tr>
+
+{# ── 検索 & 一括操作バー ── #}
+<div class="card p-2 mb-2 d-flex flex-row gap-3 align-items-center flex-wrap">
+  <input type="text" id="searchBox" class="form-control form-control-sm" placeholder="品名で検索..." style="max-width:220px" oninput="filterTable()">
+  <form method="post" action="{{ url_for('masters.bulk_delete_products') }}" id="bulkForm" class="bulk-bar">
+    <span class="small text-muted"><span id="selCount">0</span>件選択中</span>
+    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('選択した品名を削除しますか？')">
+      <i class="bi bi-trash"></i> 一括削除
+    </button>
+  </form>
+</div>
+
+{# ── タブ切替 ── #}
+<ul class="nav nav-tabs mb-0" id="productTabs">
+  <li class="nav-item"><button type="button" class="nav-link active" onclick="switchTab('list')">一覧</button></li>
+  <li class="nav-item"><button type="button" class="nav-link" onclick="switchTab('proc')">工程標準リンク</button></li>
+</ul>
+
+{# ── 一覧タブ ── #}
+<div id="tab-list" class="card p-3 border-top-0 rounded-0 rounded-bottom">
+  <table class="table table-sm table-hover align-middle" id="mainTable">
+    <thead class="table-light">
+      <tr>
+        <th style="width:36px"><input type="checkbox" id="checkAll"></th>
+        <th>ID</th><th>品名</th><th>工程品名</th><th>使用中</th><th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
     {% for p in products %}
-    <tr>
-      <form method="post" action="{{ url_for('masters.edit_product', id=p.product_id) }}">
-        <td>{{p.product_id}}</td>
-        <td><input class="form-control form-control-sm" name="product_name" value="{{p.product_name}}"></td>
-        <td><input class="form-control form-control-sm" name="process_product_name" value="{{p.process_product_name or ''}}"></td>
-        <td><input type="checkbox" name="is_active" value="1" {% if p.is_active %}checked{% endif %}></td>
-        <td>
-          <button type="submit" class="btn btn-sm btn-success">保存</button>
-      </form>
-      <form class="d-inline" method="post" action="{{ url_for('masters.delete_product', id=p.product_id) }}">
-        <button type="submit" class="btn btn-sm btn-danger">削除</button>
-      </form>
-        </td>
+    <tr data-searchtext="{{ p.product_name | lower }} {{ (p.process_product_name or '') | lower }}">
+      <td><input type="checkbox" class="row-cb" value="{{ p.product_id }}" form="bulkForm" name="ids"></td>
+      <td class="text-muted small">{{ p.product_id }}</td>
+      <td>
+        <form method="post" action="{{ url_for('masters.edit_product', id=p.product_id) }}" class="d-inline">
+          <input class="form-control form-control-sm d-inline" style="width:180px" name="product_name" value="{{ p.product_name }}">
+          <input class="form-control form-control-sm d-inline" style="width:180px" name="process_product_name" value="{{ p.process_product_name or '' }}">
+          <input type="checkbox" name="is_active" value="1" {% if p.is_active %}checked{% endif %} title="有効">
+          <button type="submit" class="btn btn-sm btn-success ms-1">保存</button>
+        </form>
+      </td>
+      <td>{{ p.process_product_name or '—' }}</td>
+      <td>{{ '✔' if p.is_active else '—' }}</td>
+      <td>
+        <form method="post" action="{{ url_for('masters.delete_product', id=p.product_id) }}" class="d-inline">
+          <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('削除しますか？')">削除</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
+    </tbody>
   </table>
 </div>
+
+{# ── 工程標準リンクタブ ── #}
+<div id="tab-proc" class="card p-3 border-top-0 rounded-0 rounded-bottom d-none">
+  <p class="small text-muted mb-2">品名を選択して工程標準を確認・編集できます。</p>
+  <div class="list-group list-group-flush">
+    {% for p in products %}
+    <a href="{{ url_for('masters.product_template_detail', product_name=p.product_name) }}"
+       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2">
+      <span>{{ p.product_name }}</span>
+      <span class="text-muted small">{{ p.process_product_name or '' }} <i class="bi bi-chevron-right"></i></span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+(function(){
+  const checkAll = document.getElementById('checkAll');
+  const bulkForm = document.getElementById('bulkForm');
+  const selCount = document.getElementById('selCount');
+  let lastChecked = null;
+
+  function updateBulkBar(){
+    const checked = document.querySelectorAll('.row-cb:checked');
+    selCount.textContent = checked.length;
+    bulkForm.classList.toggle('show', checked.length > 0);
+  }
+
+  checkAll.addEventListener('change', () => {
+    document.querySelectorAll('.row-cb').forEach(cb => {
+      if(cb.closest('tr').style.display !== 'none') cb.checked = checkAll.checked;
+    });
+    updateBulkBar();
+  });
+
+  document.querySelectorAll('.row-cb').forEach(cb => {
+    cb.addEventListener('click', e => {
+      if(e.shiftKey && lastChecked){
+        const cbs = [...document.querySelectorAll('.row-cb')];
+        const a = cbs.indexOf(lastChecked), b = cbs.indexOf(cb);
+        cbs.slice(Math.min(a,b), Math.max(a,b)+1).forEach(c => c.checked = cb.checked);
+      }
+      lastChecked = cb;
+      updateBulkBar();
+    });
+  });
+
+  window.filterTable = function(){
+    const q = document.getElementById('searchBox').value.toLowerCase();
+    document.querySelectorAll('#mainTable tbody tr').forEach(tr => {
+      tr.style.display = tr.dataset.searchtext.includes(q) ? '' : 'none';
+    });
+  };
+
+  window.switchTab = function(name){
+    document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('d-none'));
+    document.getElementById('tab-' + name).classList.remove('d-none');
+    document.querySelectorAll('#productTabs .nav-link').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+  };
+})();
+</script>
 {% endblock %}

@@ -60,7 +60,16 @@ def delete_product(id):
 
 @masters_bp.route("/process-standards")
 def standards():
-    return render_template("masters/process_standards.html", standards=ProductProcessStandard.query.order_by(ProductProcessStandard.product_name, ProductProcessStandard.process_order).all())
+    product_filter = request.args.get("product", "")
+    q = ProductProcessStandard.query.order_by(ProductProcessStandard.product_name, ProductProcessStandard.process_order)
+    if product_filter:
+        q = q.filter(ProductProcessStandard.product_name == product_filter)
+    standards_list = q.all()
+    product_names = [r[0] for r in db.session.query(ProductProcessStandard.product_name).distinct().order_by(ProductProcessStandard.product_name).all()]
+    return render_template("masters/process_standards.html",
+                           standards=standards_list,
+                           product_names=product_names,
+                           product_filter=product_filter)
 
 @masters_bp.route("/process-standards/add", methods=["POST"])
 def add_standard():
@@ -87,7 +96,26 @@ def delete_standard(id):
 
 @masters_bp.route("/process-capacity")
 def capacity():
-    return render_template("masters/process_capacity.html", capacities=ProcessCapacity.query.order_by(ProcessCapacity.work_date.desc()).limit(200).all())
+    proc_filter = request.args.get("process", "")
+    date_from   = request.args.get("date_from", "")
+    date_to     = request.args.get("date_to", "")
+    q = ProcessCapacity.query.order_by(ProcessCapacity.work_date.desc(), ProcessCapacity.process_name)
+    if proc_filter:
+        q = q.filter(ProcessCapacity.process_name == proc_filter)
+    if date_from:
+        try: q = q.filter(ProcessCapacity.work_date >= datetime.fromisoformat(date_from).date())
+        except ValueError: pass
+    if date_to:
+        try: q = q.filter(ProcessCapacity.work_date <= datetime.fromisoformat(date_to).date())
+        except ValueError: pass
+    capacities = q.limit(500).all()
+    process_names = [r[0] for r in db.session.query(ProcessCapacity.process_name).distinct().order_by(ProcessCapacity.process_name).all()]
+    return render_template("masters/process_capacity.html",
+                           capacities=capacities,
+                           process_names=process_names,
+                           proc_filter=proc_filter,
+                           date_from=date_from,
+                           date_to=date_to)
 
 @masters_bp.route("/process-capacity/add", methods=["POST"])
 def add_capacity():
@@ -358,6 +386,56 @@ def _float(v, default=0.0):
 def _int(v, default=0):
     try: return int(float(v))
     except (TypeError, ValueError): return default
+
+
+# ─── 出荷先マスタ Import / Export ─────────────────────────────────
+
+# ─── 一括削除 ────────────────────────────────────────────────────
+
+@masters_bp.route("/customers/bulk-delete", methods=["POST"])
+def bulk_delete_customers():
+    ids = request.form.getlist("ids", type=int)
+    if ids:
+        Customer.query.filter(Customer.customer_id.in_(ids)).delete(synchronize_session=False)
+        commit_or_rollback(); cache_service.clear()
+        flash(f"出荷先 {len(ids)}件を削除しました。", "success")
+    return redirect(url_for("masters.customers"))
+
+@masters_bp.route("/products/bulk-delete", methods=["POST"])
+def bulk_delete_products():
+    ids = request.form.getlist("ids", type=int)
+    if ids:
+        Product.query.filter(Product.product_id.in_(ids)).delete(synchronize_session=False)
+        commit_or_rollback(); cache_service.clear()
+        flash(f"品名 {len(ids)}件を削除しました。", "success")
+    return redirect(url_for("masters.products"))
+
+@masters_bp.route("/process-standards/bulk-delete", methods=["POST"])
+def bulk_delete_standards():
+    ids = request.form.getlist("ids", type=int)
+    if ids:
+        ProductProcessStandard.query.filter(ProductProcessStandard.standard_id.in_(ids)).delete(synchronize_session=False)
+        commit_or_rollback(); cache_service.clear()
+        flash(f"工程標準 {len(ids)}件を削除しました。", "success")
+    return redirect(url_for("masters.standards"))
+
+@masters_bp.route("/process-capacity/bulk-delete", methods=["POST"])
+def bulk_delete_capacity():
+    ids = request.form.getlist("ids", type=int)
+    if ids:
+        ProcessCapacity.query.filter(ProcessCapacity.capacity_id.in_(ids)).delete(synchronize_session=False)
+        commit_or_rollback(); cache_service.clear()
+        flash(f"工程キャパ {len(ids)}件を削除しました。", "success")
+    return redirect(url_for("masters.capacity"))
+
+@masters_bp.route("/process-masters/bulk-delete", methods=["POST"])
+def bulk_delete_process_masters():
+    ids = request.form.getlist("ids", type=int)
+    if ids:
+        ProcessMaster.query.filter(ProcessMaster.process_id.in_(ids)).delete(synchronize_session=False)
+        commit_or_rollback(); cache_service.clear()
+        flash(f"工程マスタ {len(ids)}件を削除しました。", "success")
+    return redirect(url_for("masters.process_masters"))
 
 
 # ─── 出荷先マスタ Import / Export ─────────────────────────────────

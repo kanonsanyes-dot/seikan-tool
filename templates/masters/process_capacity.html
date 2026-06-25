@@ -1,43 +1,172 @@
-{% extends 'base.html' %}{%- block h1 -%}工程キャパマスタ{%- endblock -%}{% block content %}
+{% extends 'base.html' %}
+{%- block h1 -%}工程キャパマスタ{%- endblock -%}
+{% block content %}
+<style>
+.bulk-bar { display:none; gap:8px; align-items:center; }
+.bulk-bar.show { display:flex; }
+</style>
 
 {# ── インポート / テンプレートDL ── #}
 <div class="card p-3 mb-3">
-  <div class="d-flex align-items-center gap-3 flex-wrap">
-    <span class="fw-bold small text-muted">一括取込 (Excel / CSV)</span>
+  <div class="d-flex gap-3 align-items-center flex-wrap">
+    <span class="fw-bold small text-muted">一括取込</span>
     <a href="{{ url_for('masters.capacity_template') }}" class="btn btn-sm btn-outline-success">
       <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
     </a>
     <form method="post" action="{{ url_for('masters.import_capacity') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
-      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:220px" required>
+      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:200px" required>
       <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
     </form>
-    <span class="text-muted small">※ 工程名+稼働日が一致する場合は上書き更新</span>
+    <span class="text-muted small">※ 工程名+稼働日が一致する場合は上書き</span>
   </div>
 </div>
 
+{# ── 追加フォーム ── #}
 <form class="card p-3 mb-3 row g-2" method="post" action="{{ url_for('masters.add_capacity') }}">
-  <div class="col"><input class="form-control" name="process_name" placeholder="工程"></div>
+  <div class="col"><input class="form-control" name="process_name" placeholder="工程" list="procList"></div>
+  <datalist id="procList">{% for n in process_names %}<option value="{{ n }}">{% endfor %}</datalist>
   <div class="col"><input class="form-control" type="date" name="work_date"></div>
-  <div class="col"><input class="form-control" type="number" step="0.1" name="available_hours" placeholder="稼働h"></div>
-  <div class="col"><input class="form-control" type="number" name="workers" placeholder="人員"></div>
-  <div class="col"><input class="form-control" type="number" name="capacity_quantity" placeholder="処理数"></div>
+  <div class="col" style="max-width:110px"><input class="form-control" type="number" step="0.1" name="available_hours" placeholder="定時h" value="8"></div>
+  <div class="col" style="max-width:110px"><input class="form-control" type="number" step="0.1" name="overtime_hours" placeholder="残業h" value="0"></div>
+  <div class="col" style="max-width:90px"><input class="form-control" type="number" name="workers" placeholder="人員" value="1"></div>
+  <div class="col" style="max-width:110px"><input class="form-control" type="number" name="capacity_quantity" placeholder="処理数"></div>
   <div class="col-auto"><button type="submit" class="btn btn-primary">追加</button></div>
 </form>
-<div class="card p-3 table-responsive">
-  <table class="table table-sm">
-    <tr><th>日付</th><th>工程</th><th>稼働h</th><th>残業h</th><th>人員</th><th>処理数</th><th>操作</th></tr>
-    {% for c in capacities %}
-    <tr>
-      <td>{{c.work_date}}</td><td>{{c.process_name}}</td>
-      <td>{{c.available_hours}}</td><td>{{c.overtime_hours or 0}}</td>
-      <td>{{c.workers}}</td><td>{{c.capacity_quantity}}</td>
-      <td>
-        <form method="post" action="{{ url_for('masters.delete_capacity', id=c.capacity_id) }}">
-          <button type="submit" class="btn btn-sm btn-danger">削除</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
+
+{# ── フィルタ & 一括操作 ── #}
+<div class="card p-2 mb-0 rounded-bottom-0 border-bottom-0">
+  <form method="get" action="{{ url_for('masters.capacity') }}" class="d-flex gap-2 align-items-center flex-wrap">
+    <select name="process" class="form-select form-select-sm" style="width:200px">
+      <option value="">── 全工程 ──</option>
+      {% for n in process_names %}
+      <option value="{{ n }}" {% if n == proc_filter %}selected{% endif %}>{{ n }}</option>
+      {% endfor %}
+    </select>
+    <input type="date" name="date_from" class="form-control form-control-sm" style="width:150px" value="{{ date_from }}">
+    <span class="text-muted small">〜</span>
+    <input type="date" name="date_to" class="form-control form-control-sm" style="width:150px" value="{{ date_to }}">
+    <button type="submit" class="btn btn-sm btn-outline-primary">絞込</button>
+    {% if proc_filter or date_from or date_to %}
+    <a href="{{ url_for('masters.capacity') }}" class="btn btn-sm btn-outline-secondary">クリア</a>
+    {% endif %}
+    <span class="text-muted small ms-2">{{ capacities | length }}件</span>
+  </form>
 </div>
+
+{# ── タブ ── #}
+<ul class="nav nav-tabs px-2 pt-2 bg-white border-start border-end" id="capTabs">
+  <li class="nav-item"><button type="button" class="nav-link active" data-tab="list">一覧</button></li>
+  <li class="nav-item"><button type="button" class="nav-link" data-tab="group">工程別ビュー</button></li>
+</ul>
+
+{# ── 一覧タブ ── #}
+<div id="tab-list" class="card border-top-0 rounded-0 rounded-bottom">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0" id="mainTable">
+      <thead class="table-light">
+        <tr>
+          <th style="width:36px"><input type="checkbox" id="checkAll"></th>
+          <th>稼働日</th><th>工程</th><th class="text-center">定時h</th>
+          <th class="text-center">残業h</th><th class="text-center">人員</th>
+          <th class="text-center">処理数</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in capacities %}
+      <tr>
+        <td><input type="checkbox" class="row-cb" value="{{ c.capacity_id }}" form="bulkForm" name="ids"></td>
+        <td>{{ c.work_date }}</td>
+        <td class="fw-semibold">{{ c.process_name }}</td>
+        <td class="text-center">{{ c.available_hours }}</td>
+        <td class="text-center">{{ c.overtime_hours or 0 }}</td>
+        <td class="text-center">{{ c.workers }}</td>
+        <td class="text-center">{{ c.capacity_quantity or '—' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('masters.delete_capacity', id=c.capacity_id) }}" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('削除しますか？')">削除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# 一括削除フォーム（テーブルの外、hidden） ── #}
+<form method="post" action="{{ url_for('masters.bulk_delete_capacity') }}" id="bulkForm" class="bulk-bar" style="position:fixed;bottom:20px;right:24px;background:#fff;border:1px solid #dee2e6;border-radius:8px;padding:10px 16px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:1000;">
+  <span class="small fw-bold"><span id="selCount">0</span>件選択中</span>
+  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('選択した工程キャパを削除しますか？')">
+    <i class="bi bi-trash"></i> 一括削除
+  </button>
+</form>
+
+{# ── 工程別ビュータブ ── #}
+<div id="tab-group" class="card border-top-0 rounded-0 rounded-bottom d-none p-3">
+  {% set ns = namespace(cur_proc='') %}
+  {% for c in capacities | sort(attribute='process_name') %}
+    {% if c.process_name != ns.cur_proc %}
+      {% if ns.cur_proc != '' %}</tbody></table></div></div>{% endif %}
+      {% set ns.cur_proc = c.process_name %}
+      <div class="card mb-2">
+        <div class="card-header py-2 fw-bold" style="cursor:pointer"
+             onclick="this.nextElementSibling.classList.toggle('d-none')">
+          {{ c.process_name }}
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>日付</th><th>定時h</th><th>残業h</th><th>人員</th><th>処理数</th></tr></thead>
+            <tbody>
+    {% endif %}
+        <tr>
+          <td>{{ c.work_date }}</td><td>{{ c.available_hours }}</td>
+          <td>{{ c.overtime_hours or 0 }}</td><td>{{ c.workers }}</td>
+          <td>{{ c.capacity_quantity or '—' }}</td>
+        </tr>
+  {% endfor %}
+  {% if ns.cur_proc != '' %}</tbody></table></div></div>{% endif %}
+</div>
+
+<script>
+(function(){
+  const checkAll = document.getElementById('checkAll');
+  const bulkForm = document.getElementById('bulkForm');
+  const selCount = document.getElementById('selCount');
+  let lastChecked = null;
+
+  function updateBulkBar(){
+    const checked = document.querySelectorAll('.row-cb:checked');
+    selCount.textContent = checked.length;
+    bulkForm.classList.toggle('show', checked.length > 0);
+  }
+
+  if(checkAll) checkAll.addEventListener('change', () => {
+    document.querySelectorAll('.row-cb').forEach(cb => {
+      if(cb.closest('tr').style.display !== 'none') cb.checked = checkAll.checked;
+    });
+    updateBulkBar();
+  });
+
+  document.querySelectorAll('.row-cb').forEach(cb => {
+    cb.addEventListener('click', e => {
+      if(e.shiftKey && lastChecked){
+        const cbs = [...document.querySelectorAll('.row-cb')];
+        const a = cbs.indexOf(lastChecked), b = cbs.indexOf(cb);
+        cbs.slice(Math.min(a,b), Math.max(a,b)+1).forEach(c => c.checked = cb.checked);
+      }
+      lastChecked = cb;
+      updateBulkBar();
+    });
+  });
+
+  document.querySelectorAll('#capTabs .nav-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('d-none'));
+      document.getElementById('tab-' + btn.dataset.tab).classList.remove('d-none');
+      document.querySelectorAll('#capTabs .nav-link').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+})();
+</script>
 {% endblock %}

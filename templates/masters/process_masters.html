@@ -23,7 +23,16 @@
   <div class="col-lg-8">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center py-2">
-        <span class="fw-bold"><i class="bi bi-gear-fill me-1 text-primary"></i>工程一覧</span>
+        <div class="d-flex align-items-center gap-3">
+          <span class="fw-bold"><i class="bi bi-gear-fill me-1 text-primary"></i>工程一覧</span>
+          <form method="post" action="{{ url_for('masters.bulk_delete_process_masters') }}" id="pmBulkForm"
+                style="display:none;gap:8px;align-items:center;" class="d-flex">
+            <span class="small text-muted"><span id="pmSelCount">0</span>件選択中</span>
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('削除しますか？')">
+              <i class="bi bi-trash"></i> 一括削除
+            </button>
+          </form>
+        </div>
         <a href="{{ url_for('masters.product_templates') }}" class="btn btn-sm btn-outline-primary">
           <i class="bi bi-grid-3x3 me-1"></i>品名工程テンプレート
         </a>
@@ -32,6 +41,7 @@
         <table class="table table-sm table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
+              <th style="width:36px"><input type="checkbox" id="pmCheckAll"></th>
               <th>#</th><th>工程名</th>
               <th>定時(h/日)</th><th>残業(h/日)</th><th>ペース(pcs/h)</th>
               <th>日産能力(pcs)</th><th>有効</th><th></th>
@@ -40,6 +50,7 @@
           <tbody>
             {% for pm in masters %}
             <tr>
+              <td><input type="checkbox" class="pm-cb" value="{{ pm.process_id }}" form="pmBulkForm" name="ids"></td>
               <td class="text-muted small">{{ pm.display_order }}</td>
               <td class="fw-bold">{{ pm.process_name }}</td>
               <td>
@@ -133,4 +144,31 @@
     </div>
   </div>
 </div>
+<script>
+(function(){
+  const checkAll = document.getElementById('pmCheckAll');
+  const bulkForm = document.getElementById('pmBulkForm');
+  const selCount = document.getElementById('pmSelCount');
+  let lastChecked = null;
+  function update(){
+    const n = document.querySelectorAll('.pm-cb:checked').length;
+    selCount.textContent = n;
+    bulkForm.style.display = n > 0 ? 'flex' : 'none';
+  }
+  checkAll.addEventListener('change', () => {
+    document.querySelectorAll('.pm-cb').forEach(cb => cb.checked = checkAll.checked);
+    update();
+  });
+  document.querySelectorAll('.pm-cb').forEach(cb => {
+    cb.addEventListener('click', e => {
+      if(e.shiftKey && lastChecked){
+        const cbs = [...document.querySelectorAll('.pm-cb')];
+        const a = cbs.indexOf(lastChecked), b = cbs.indexOf(cb);
+        cbs.slice(Math.min(a,b), Math.max(a,b)+1).forEach(c => c.checked = cb.checked);
+      }
+      lastChecked = cb; update();
+    });
+  });
+})();
+</script>
 {% endblock %}
