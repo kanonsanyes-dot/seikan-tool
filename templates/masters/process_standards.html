@@ -1,43 +1,176 @@
-{% extends 'base.html' %}{%- block h1 -%}品名工程標準マスタ{%- endblock -%}{% block content %}
+{% extends 'base.html' %}
+{%- block h1 -%}品名工程標準マスタ{%- endblock -%}
+{% block content %}
+<style>
+.bulk-bar { display:none; gap:8px; align-items:center; }
+.bulk-bar.show { display:flex; }
+</style>
 
 {# ── インポート / テンプレートDL ── #}
 <div class="card p-3 mb-3">
-  <div class="d-flex align-items-center gap-3 flex-wrap">
-    <span class="fw-bold small text-muted">一括取込 (Excel / CSV)</span>
+  <div class="d-flex gap-3 align-items-center flex-wrap">
+    <span class="fw-bold small text-muted">一括取込</span>
     <a href="{{ url_for('masters.standards_template') }}" class="btn btn-sm btn-outline-success">
       <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
     </a>
     <form method="post" action="{{ url_for('masters.import_standards') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
-      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:220px" required>
+      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:200px" required>
       <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
     </form>
-    <span class="text-muted small">※ 品名+工程名が一致する場合は上書き更新</span>
+    <span class="text-muted small">※ 品名+工程名が一致する場合は上書き</span>
   </div>
 </div>
 
+{# ── 追加フォーム ── #}
 <form class="card p-3 mb-3 row g-2" method="post" action="{{ url_for('masters.add_standard') }}">
-  <div class="col"><input class="form-control" name="product_name" placeholder="品名"></div>
+  <div class="col"><input class="form-control" name="product_name" placeholder="品名" list="pnList"></div>
+  <datalist id="pnList">{% for n in product_names %}<option value="{{ n }}">{% endfor %}</datalist>
   <div class="col"><input class="form-control" name="process_product_name" placeholder="工程品名"></div>
   <div class="col"><input class="form-control" name="process_name" placeholder="工程"></div>
-  <div class="col"><input class="form-control" type="number" name="process_order" placeholder="順"></div>
-  <div class="col"><input class="form-control" type="number" step="0.01" name="standard_time_min" placeholder="分/個"></div>
-  <div class="col"><input class="form-control" type="number" name="daily_capacity" placeholder="日産"></div>
+  <div class="col" style="max-width:80px"><input class="form-control" type="number" name="process_order" placeholder="順"></div>
+  <div class="col" style="max-width:100px"><input class="form-control" type="number" step="0.01" name="standard_time_min" placeholder="分/個"></div>
+  <div class="col" style="max-width:100px"><input class="form-control" type="number" name="daily_capacity" placeholder="日産"></div>
   <div class="col-auto"><button type="submit" class="btn btn-primary">追加</button></div>
 </form>
-<div class="card p-3 table-responsive">
-  <table class="table table-sm">
-    <tr><th>品名</th><th>工程品名</th><th>工程</th><th>順</th><th>分/個</th><th>日産</th><th>操作</th></tr>
-    {% for s in standards %}
-    <tr>
-      <td>{{s.product_name}}</td><td>{{s.process_product_name}}</td><td>{{s.process_name}}</td>
-      <td>{{s.process_order}}</td><td>{{s.standard_time_min}}</td><td>{{s.daily_capacity}}</td>
-      <td>
-        <form method="post" action="{{ url_for('masters.delete_standard', id=s.standard_id) }}">
-          <button type="submit" class="btn btn-sm btn-danger">削除</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
+
+{# ── フィルタ & 一括操作 ── #}
+<div class="card p-2 mb-0 rounded-bottom-0 border-bottom-0">
+  <div class="d-flex gap-3 align-items-center flex-wrap">
+    <form method="get" action="{{ url_for('masters.standards') }}" class="d-flex gap-2 align-items-center">
+      <select name="product" class="form-select form-select-sm" style="width:240px" onchange="this.form.submit()">
+        <option value="">── 全品名 ──</option>
+        {% for n in product_names %}
+        <option value="{{ n }}" {% if n == product_filter %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+      {% if product_filter %}
+      <a href="{{ url_for('masters.standards') }}" class="btn btn-sm btn-outline-secondary">クリア</a>
+      {% endif %}
+    </form>
+    <input type="text" id="searchBox" class="form-control form-control-sm" placeholder="テキスト検索..." style="max-width:200px" oninput="filterTable()">
+    <form method="post" action="{{ url_for('masters.bulk_delete_standards') }}" id="bulkForm" class="bulk-bar">
+      <span class="small text-muted"><span id="selCount">0</span>件選択中</span>
+      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('選択した工程標準を削除しますか？')">
+        <i class="bi bi-trash"></i> 一括削除
+      </button>
+    </form>
+  </div>
 </div>
+
+{# ── タブ切替 ── #}
+<ul class="nav nav-tabs px-2 pt-2 bg-white border-start border-end" id="stdTabs">
+  <li class="nav-item"><button type="button" class="nav-link active" data-tab="list">一覧</button></li>
+  <li class="nav-item"><button type="button" class="nav-link" data-tab="group">品名別アコーディオン</button></li>
+</ul>
+
+{# ── 一覧タブ ── #}
+<div id="tab-list" class="card border-top-0 rounded-0 rounded-bottom">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0" id="mainTable">
+      <thead class="table-light">
+        <tr>
+          <th style="width:36px"><input type="checkbox" id="checkAll"></th>
+          <th>品名</th><th>工程品名</th><th>工程</th><th class="text-center">順</th>
+          <th class="text-center">分/個</th><th class="text-center">日産</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in standards %}
+      <tr data-searchtext="{{ s.product_name | lower }} {{ s.process_name | lower }} {{ (s.process_product_name or '') | lower }}">
+        <td><input type="checkbox" class="row-cb" value="{{ s.standard_id }}" form="bulkForm" name="ids"></td>
+        <td class="fw-semibold small">{{ s.product_name }}</td>
+        <td class="text-muted small">{{ s.process_product_name or '—' }}</td>
+        <td>{{ s.process_name }}</td>
+        <td class="text-center">{{ s.process_order }}</td>
+        <td class="text-center">{{ s.standard_time_min or '—' }}</td>
+        <td class="text-center">{{ s.daily_capacity or '—' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('masters.delete_standard', id=s.standard_id) }}" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('削除しますか？')">削除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── 品名別アコーディオンタブ ── #}
+<div id="tab-group" class="card border-top-0 rounded-0 rounded-bottom d-none p-3">
+  {% set ns = namespace(cur_product='') %}
+  {% for s in standards %}
+    {% if s.product_name != ns.cur_product %}
+      {% if ns.cur_product != '' %}</tbody></table></div></div>{% endif %}
+      {% set ns.cur_product = s.product_name %}
+      <div class="card mb-2">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center" style="cursor:pointer"
+             onclick="this.nextElementSibling.classList.toggle('d-none')">
+          <span class="fw-bold">{{ s.product_name }}</span>
+          <i class="bi bi-chevron-down"></i>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>工程</th><th>順</th><th>分/個</th><th>日産</th></tr></thead>
+            <tbody>
+    {% endif %}
+        <tr>
+          <td>{{ s.process_name }}</td>
+          <td>{{ s.process_order }}</td>
+          <td>{{ s.standard_time_min or '—' }}</td>
+          <td>{{ s.daily_capacity or '—' }}</td>
+        </tr>
+  {% endfor %}
+  {% if ns.cur_product != '' %}</tbody></table></div></div>{% endif %}
+</div>
+
+<script>
+(function(){
+  const checkAll = document.getElementById('checkAll');
+  const bulkForm = document.getElementById('bulkForm');
+  const selCount = document.getElementById('selCount');
+  let lastChecked = null;
+
+  function updateBulkBar(){
+    const checked = document.querySelectorAll('.row-cb:checked');
+    selCount.textContent = checked.length;
+    bulkForm.classList.toggle('show', checked.length > 0);
+  }
+
+  if(checkAll) checkAll.addEventListener('change', () => {
+    document.querySelectorAll('.row-cb').forEach(cb => {
+      if(cb.closest('tr').style.display !== 'none') cb.checked = checkAll.checked;
+    });
+    updateBulkBar();
+  });
+
+  document.querySelectorAll('.row-cb').forEach(cb => {
+    cb.addEventListener('click', e => {
+      if(e.shiftKey && lastChecked){
+        const cbs = [...document.querySelectorAll('.row-cb')];
+        const a = cbs.indexOf(lastChecked), b = cbs.indexOf(cb);
+        cbs.slice(Math.min(a,b), Math.max(a,b)+1).forEach(c => c.checked = cb.checked);
+      }
+      lastChecked = cb;
+      updateBulkBar();
+    });
+  });
+
+  window.filterTable = function(){
+    const q = document.getElementById('searchBox').value.toLowerCase();
+    document.querySelectorAll('#mainTable tbody tr').forEach(tr => {
+      tr.style.display = tr.dataset.searchtext.includes(q) ? '' : 'none';
+    });
+  };
+
+  document.querySelectorAll('#stdTabs .nav-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('d-none'));
+      document.getElementById('tab-' + btn.dataset.tab).classList.remove('d-none');
+      document.querySelectorAll('#stdTabs .nav-link').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+})();
+</script>
 {% endblock %}
