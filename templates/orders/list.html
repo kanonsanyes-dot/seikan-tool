@@ -25,9 +25,9 @@
     </form>
   {% endif %}
 </td></tr>
-<div class="modal fade" id="edit{{o.order_id}}"><div class="modal-dialog"><div class="modal-content"><form method="post" action="{{ url_for('orders.edit_order', order_id=o.order_id) }}"><div class="modal-header"><h5>受注編集 #{{o.order_id}}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<div class="modal fade" id="edit{{o.order_id}}"><div class="modal-dialog"><div class="modal-content"><form method="post" action="{{ url_for('orders.edit_order', order_id=o.order_id) }}"><div class="modal-header"><h5>受注編集 #{{o.order_id}}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
 <input class="form-control mb-2" name="product_name" value="{{ o.product_name }}"><input class="form-control mb-2" name="process_product_name" value="{{ o.process_product_name or '' }}"><input class="form-control mb-2" name="customer" value="{{ o.customer }}"><input class="form-control mb-2" type="date" name="ship_date" value="{{ o.ship_date }}"><input class="form-control mb-2" type="number" name="quantity" value="{{ o.quantity }}"><select class="form-select" name="status">{% for s in ['受注中','完了','調整中'] %}<option {% if o.status==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select>
-</div><div class="modal-footer"><button class="btn btn-primary">保存</button></div></form></div></div></div>
+</div><div class="modal-footer"><button type="submit" class="btn btn-primary">保存</button></div></form></div></div></div>
 {% endfor %}
 </table>
 <nav><ul class="pagination pagination-sm">{% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{pagination.prev_num}}">前</a></li>{% endif %}<li class="page-item disabled"><span class="page-link">{{pagination.page}} / {{pagination.pages or 1}}</span></li>{% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{pagination.next_num}}">次</a></li>{% endif %}</ul></nav>

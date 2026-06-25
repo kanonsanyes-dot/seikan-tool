@@ -127,14 +127,14 @@
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div class="filter-bar">
       <span class="small fw-bold text-muted">表示:</span>
-      <button class="btn-filter {% if active_filter=='active' %}active{% endif %}" onclick="location.href='?status=active'">進行中受注</button>
-      <button class="btn-filter {% if active_filter=='inprogress' %}active{% endif %}" onclick="location.href='?status=inprogress'">作業中のみ</button>
-      <button class="btn-filter {% if active_filter=='overdue' %}active{% endif %}" onclick="location.href='?status=overdue'">期限超過</button>
-      <button class="btn-filter {% if active_filter=='all' %}active{% endif %}" onclick="location.href='?status=all'">全件</button>
+      <button type="button" class="btn-filter {% if active_filter=='active' %}active{% endif %}" onclick="location.href='?status=active'">進行中受注</button>
+      <button type="button" class="btn-filter {% if active_filter=='inprogress' %}active{% endif %}" onclick="location.href='?status=inprogress'">作業中のみ</button>
+      <button type="button" class="btn-filter {% if active_filter=='overdue' %}active{% endif %}" onclick="location.href='?status=overdue'">期限超過</button>
+      <button type="button" class="btn-filter {% if active_filter=='all' %}active{% endif %}" onclick="location.href='?status=all'">全件</button>
     </div>
     <div class="d-flex gap-2 align-items-center">
       <span class="text-muted small" id="autoRefreshLabel">自動更新: <span id="countdown">60</span>s</span>
-      <button class="btn btn-sm btn-outline-primary" onclick="location.reload()"><i class="bi bi-arrow-clockwise"></i> 更新</button>
+      <button type="button" class="btn btn-sm btn-outline-primary" onclick="location.reload()"><i class="bi bi-arrow-clockwise"></i> 更新</button>
     </div>
   </div>
 </div>
@@ -224,8 +224,8 @@
       <textarea class="form-control form-control-sm" id="modalRemarks" rows="2"></textarea>
     </div>
     <div class="d-flex gap-2 justify-content-end">
-      <button class="btn btn-secondary btn-sm" onclick="closeProgressModal()">キャンセル</button>
-      <button class="btn btn-primary btn-sm" onclick="saveProgress()"><i class="bi bi-check2"></i> 保存</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeProgressModal()">キャンセル</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="saveProgress()"><i class="bi bi-check2"></i> 保存</button>
     </div>
   </div>
 </div>
