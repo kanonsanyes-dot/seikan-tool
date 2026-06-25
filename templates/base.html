@@ -30,7 +30,11 @@
       </a>
       <a class="sb-link {% if current_path == '/orders/import' %}sb-active{% endif %}"
          href="{{ url_for('orders.import_view') }}">
-        <i class="bi bi-cloud-arrow-up-fill"></i><span>受注取込</span>
+        <i class="bi bi-cloud-arrow-up-fill"></i><span>受注取込(CSV)</span>
+      </a>
+      <a class="sb-link {% if current_path == '/orders/import-xls' %}sb-active{% endif %}"
+         href="{{ url_for('orders.import_xls') }}">
+        <i class="bi bi-file-earmark-excel-fill"></i><span>受注取込(Excel)</span>
       </a>
       <a class="sb-link {% if current_path in ['/orders', '/orders/'] %}sb-active{% endif %}"
          href="{{ url_for('orders.list_orders') }}">
@@ -101,6 +105,14 @@
       <a class="sb-link {% if current_path in ['/masters/capacity', '/masters/process-capacity'] %}sb-active{% endif %}"
          href="{{ url_for('masters.capacity') }}">
         <i class="bi bi-people-fill"></i><span>工程キャパ</span>
+      </a>
+      <a class="sb-link {% if '/masters/process-masters' in current_path %}sb-active{% endif %}"
+         href="{{ url_for('masters.process_masters') }}">
+        <i class="bi bi-gear-fill"></i><span>工程マスタ</span>
+      </a>
+      <a class="sb-link {% if '/masters/product-templates' in current_path %}sb-active{% endif %}"
+         href="{{ url_for('masters.product_templates') }}">
+        <i class="bi bi-grid-3x3-gap-fill"></i><span>工程テンプレート</span>
       </a>
     </nav>
   </aside>

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}受注Excel取込 - SeikanTool{% endblock %}
+{% block h1 %}受注Excel取込（grd_Receive形式）{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+
+    {# ── Step1: ファイル選択 ── #}
+    <div class="card mb-4">
+      <div class="card-header py-2 fw-bold">
+        <i class="bi bi-upload me-1 text-primary"></i>Step 1 — ファイルを選択してプレビュー
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="preview">
+          <div class="row g-3 align-items-end">
+            <div class="col-sm-5">
+              <label class="form-label small fw-bold">ファイル（.xls / HTML形式）</label>
+              <input type="file" name="file" class="form-control" accept=".xls,.xlsx,.html,.htm" required>
+            </div>
+            <div class="col-auto">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="skip_zero_remaining" value="1"
+                       id="skipZero" {% if skip_zero %}checked{% endif %}>
+                <label class="form-check-label small" for="skipZero">注残 = 0（完納済み）をスキップ</label>
+              </div>
+            </div>
+            <div class="col-auto">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search me-1"></i>プレビュー
+              </button>
+            </div>
+          </div>
+        </form>
+        <div class="mt-2 text-muted small">
+          対応フォーマット: 受注区分 / 出荷予定日 / 注文番号 / 納入先 / 工程製品名 / 受注数 / 注残 / 受注日 / 製品区分 / 担当者 …
+        </div>
+      </div>
+    </div>
+
+    {# ── Step2: プレビュー ── #}
+    {% if preview is not none %}
+    <div class="card mb-4">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-bold"><i class="bi bi-table me-1 text-success"></i>Step 2 — プレビュー（{{ preview|length }} 件）</span>
+        <form method="post">
+          <input type="hidden" name="action" value="import">
+          <button type="submit" class="btn btn-sm btn-success">
+            <i class="bi bi-check2-circle me-1"></i>この内容で取込実行
+          </button>
+        </form>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0" style="font-size:.82rem;">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>注文番号</th>
+              <th>納入先</th>
+              <th>工程品名</th>
+              <th class="text-end">受注数</th>
+              <th class="text-end">注残</th>
+              <th>出荷予定日</th>
+              <th>製品区分</th>
+              <th>担当者</th>
+              <th>受注日</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in preview %}
+            <tr class="{% if r.remaining_qty == 0 %}text-muted{% endif %}">
+              <td>{{ loop.index }}</td>
+              <td class="small">{{ r.order_no or '-' }}</td>
+              <td>{{ r.customer }}</td>
+              <td>{{ r.product_name[:30] }}{% if r.product_name|length > 30 %}…{% endif %}</td>
+              <td class="text-end">{{ "{:,}".format(r.quantity) }}</td>
+              <td class="text-end {% if r.remaining_qty > 0 %}fw-bold text-primary{% else %}text-muted{% endif %}">
+                {{ "{:,}".format(r.remaining_qty) }}
+              </td>
+              <td class="small">{{ r.ship_date }}</td>
+              <td class="small">{{ r.product_category or '-' }}</td>
+              <td class="small">{{ r.sales_person or '-' }}</td>
+              <td class="small">{{ r.order_date or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="10" class="text-center text-muted py-3">取込対象データがありません</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if preview %}
+      <div class="card-footer py-2 d-flex justify-content-end">
+        <form method="post">
+          <input type="hidden" name="action" value="import">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check2-circle me-1"></i>{{ preview|length }} 件を取込実行
+          </button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-body py-2 text-muted small">
+        <i class="bi bi-info-circle me-1"></i>
+        同じ注文番号のデータは重複スキップされます。注残 = 0 の完納済み受注はスキップ対象です（チェックボックスで制御）。
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

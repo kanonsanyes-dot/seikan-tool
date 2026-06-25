@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}品名工程テンプレート - SeikanTool{% endblock %}
+{% block h1 %}品名工程テンプレート{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header py-2 fw-bold">
+        <i class="bi bi-box-seam me-1 text-primary"></i>品名一覧
+      </div>
+      <div class="list-group list-group-flush" style="max-height:600px;overflow-y:auto;">
+        {% for name in product_names %}
+        <a href="{{ url_for('masters.product_template_detail', product_name=name) }}"
+           class="list-group-item list-group-item-action py-2 small">
+          <i class="bi bi-chevron-right me-1 text-muted"></i>{{ name }}
+        </a>
+        {% else %}
+        <div class="p-3 text-muted small">品名が登録されていません。<br>品名マスタまたは工程管理票から追加してください。</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body text-center text-muted py-5">
+        <i class="bi bi-arrow-left-circle fs-2 mb-2"></i>
+        <div>左の品名を選択すると、工程チェックボックスが表示されます。</div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header py-2 fw-bold">
+        <i class="bi bi-info-circle me-1 text-primary"></i>工程マスタ（現在の設定）
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>工程名</th><th>定時h/日</th><th>残業h/日</th><th>pcs/h</th><th>日産</th></tr>
+          </thead>
+          <tbody>
+            {% for pm in process_masters %}
+            <tr>
+              <td>{{ pm.process_name }}</td>
+              <td>{{ pm.hours_per_day }}h</td>
+              <td>{{ pm.overtime_hours }}h</td>
+              <td>{{ pm.pace_per_hour or '-' }}</td>
+              <td class="text-muted small">
+                {% if pm.pace_per_hour %}{{ (pm.hours_per_day * pm.pace_per_hour)|int }}{% else %}-{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer py-1">
+        <a href="{{ url_for('masters.process_masters') }}" class="btn btn-sm btn-outline-secondary">工程マスタ編集→</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

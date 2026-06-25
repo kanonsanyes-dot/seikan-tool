@@ -29,9 +29,15 @@ def commit_or_rollback():
 
 def seed_defaults():
     try:
-        from models import ProductProcessStandard, ProcessCapacity
+        from models import ProductProcessStandard, ProcessCapacity, ProcessMaster, DEFAULT_PROCESSES
         from datetime import date, timedelta
         defaults = ["プレス", "バレル", "めっき", "外観検査", "出荷"]
+        if ProcessMaster.query.count() == 0:
+            for i, name in enumerate(DEFAULT_PROCESSES, start=1):
+                db.session.add(ProcessMaster(
+                    process_name=name, display_order=i,
+                    hours_per_day=8.0, overtime_hours=0.0, pace_per_hour=0, is_active=True,
+                ))
         # 空DBでもスケジュール生成を試せるよう、標準工程の雛形を入れる
         if ProductProcessStandard.query.count() == 0:
             for i, proc in enumerate(defaults, start=1):

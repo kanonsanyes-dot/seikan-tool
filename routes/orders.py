@@ -90,3 +90,57 @@ def quality_check():
     recheck_all(Order.query.all()); commit_or_rollback(); cache_service.clear()
     flash("データ品質チェックを一括実行しました。", "success")
     return redirect(url_for("orders.list_orders"))
+
+
+@orders_bp.route("/import-xls", methods=["GET", "POST"])
+def import_xls():
+    from services.xls_import_service import parse_xls_file, import_to_db
+    preview = None
+    result = None
+    skip_zero = True
+
+    if request.method == "POST":
+        action = request.form.get("action", "preview")
+        skip_zero = request.form.get("skip_zero_remaining", "1") == "1"
+
+        if action == "preview":
+            f = request.files.get("file")
+            if not f or not f.filename:
+                flash("ファイルを選択してください。", "danger")
+                return render_template("orders/import_xls.html", preview=None, result=None)
+            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+            fpath = UPLOAD_DIR / "tmp_import.xls"
+            f.save(str(fpath))
+            try:
+                records = parse_xls_file(str(fpath))
+                if skip_zero:
+                    records = [r for r in records if r["remaining_qty"] > 0]
+                preview = records
+                flash(f"{len(records)} 件を読み込みました。内容を確認して「取込実行」してください。", "info")
+                import json
+                from flask import session
+                session["xls_import_path"] = str(fpath)
+                session["xls_skip_zero"] = skip_zero
+            except Exception as e:
+                flash(f"ファイル解析エラー: {e}", "danger")
+
+        elif action == "import":
+            from flask import session
+            fpath = session.get("xls_import_path")
+            skip_zero = session.get("xls_skip_zero", True)
+            if not fpath:
+                flash("セッションが切れました。再度ファイルを選択してください。", "danger")
+                return redirect(url_for("orders.import_xls"))
+            try:
+                records = parse_xls_file(fpath)
+                result = import_to_db(records, skip_zero_remaining=skip_zero)
+                flash(
+                    f"取込完了: 登録 {result['imported']}件 / スキップ {result['skipped']}件"
+                    + (f" / エラー {len(result['errors'])}件" if result["errors"] else ""),
+                    "success" if not result["errors"] else "warning"
+                )
+            except Exception as e:
+                flash(f"取込エラー: {e}", "danger")
+            return redirect(url_for("orders.list_orders"))
+
+    return render_template("orders/import_xls.html", preview=preview, result=result, skip_zero=skip_zero)

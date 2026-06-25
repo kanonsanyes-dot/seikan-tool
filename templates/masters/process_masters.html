@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}工程マスタ - SeikanTool{% endblock %}
+{% block h1 %}工程マスタ{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="fw-bold"><i class="bi bi-gear-fill me-1 text-primary"></i>工程一覧</span>
+        <a href="{{ url_for('masters.product_templates') }}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-grid-3x3 me-1"></i>品名工程テンプレート
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th><th>工程名</th>
+              <th>定時(h/日)</th><th>残業(h/日)</th><th>ペース(pcs/h)</th>
+              <th>日産能力(pcs)</th><th>有効</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pm in masters %}
+            <tr>
+              <td class="text-muted small">{{ pm.display_order }}</td>
+              <td class="fw-bold">{{ pm.process_name }}</td>
+              <td>
+                <form method="post" action="{{ url_for('masters.edit_process_master', pid=pm.process_id) }}" class="d-flex gap-1 align-items-center" style="min-width:380px;">
+                  <select name="hours_per_day" class="form-select form-select-sm" style="width:80px;">
+                    {% for h in [1, 6, 8, 12] %}
+                    <option value="{{ h }}" {% if pm.hours_per_day == h %}selected{% endif %}>{{ h }}h</option>
+                    {% endfor %}
+                  </select>
+                  <input type="number" name="overtime_hours" value="{{ pm.overtime_hours }}" class="form-control form-control-sm" style="width:70px;" min="0" max="12" step="0.5" placeholder="残業">
+                  <input type="number" name="pace_per_hour" value="{{ pm.pace_per_hour }}" class="form-control form-control-sm" style="width:80px;" min="0" placeholder="pcs/h">
+                  <input type="hidden" name="process_name" value="{{ pm.process_name }}">
+                  <input type="checkbox" name="is_active" value="1" {% if pm.is_active %}checked{% endif %} class="form-check-input" title="有効">
+                  <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2">保存</button>
+                </form>
+              </td>
+              <td></td><td></td>
+              <td class="small text-muted">
+                {% if pm.pace_per_hour %}
+                  {{ (pm.hours_per_day * pm.pace_per_hour)|int }}
+                  {% if pm.overtime_hours %}<span class="text-warning"> +{{ (pm.overtime_hours * pm.pace_per_hour)|int }}</span>{% endif %}
+                {% else %}-{% endif %}
+              </td>
+              <td>
+                {% if pm.is_active %}<span class="badge bg-success">有効</span>
+                {% else %}<span class="badge bg-secondary">無効</span>{% endif %}
+              </td>
+              <td>
+                <form method="post" action="{{ url_for('masters.delete_process_master', pid=pm.process_id) }}" onsubmit="return confirm('削除しますか？');">
+                  <button class="btn btn-sm btn-outline-danger py-0 px-2">削除</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-3">工程が登録されていません</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header py-2 fw-bold"><i class="bi bi-file-earmark-excel me-1 text-success"></i>工程キャパExcel取込</div>
+      <div class="card-body py-2">
+        <p class="text-muted small mb-2">Excel(.xlsx)形式。列順: <code>工程名 | 定時h/日 | 残業h/日 | pcs/h</code>（1行目ヘッダ）</p>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('masters.import_capacity_excel') }}" class="d-flex gap-2 align-items-center">
+          <input type="file" name="file" accept=".xlsx" class="form-control form-control-sm" style="max-width:300px;">
+          <button type="submit" class="btn btn-sm btn-success">取込実行</button>
+          <a href="{{ url_for('masters.download_capacity_template') }}" class="btn btn-sm btn-outline-secondary">テンプレDL</a>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header py-2 fw-bold"><i class="bi bi-plus-lg me-1"></i>工程追加</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('masters.add_process_master') }}">
+          <div class="mb-2">
+            <label class="form-label small fw-bold">工程名</label>
+            <input type="text" name="process_name" class="form-control form-control-sm" list="default-processes" required>
+            <datalist id="default-processes">
+              {% for p in default_processes %}
+              <option value="{{ p }}">
+              {% endfor %}
+            </datalist>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col">
+              <label class="form-label small fw-bold">定時 h/日</label>
+              <select name="hours_per_day" class="form-select form-select-sm">
+                <option value="1">1h</option>
+                <option value="6">6h</option>
+                <option value="8" selected>8h</option>
+                <option value="12">12h</option>
+              </select>
+            </div>
+            <div class="col">
+              <label class="form-label small fw-bold">残業 h/日</label>
+              <input type="number" name="overtime_hours" value="0" class="form-control form-control-sm" min="0" max="12" step="0.5">
+            </div>
+            <div class="col">
+              <label class="form-label small fw-bold">pcs/h</label>
+              <input type="number" name="pace_per_hour" value="0" class="form-control form-control-sm" min="0">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary w-100">追加</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
