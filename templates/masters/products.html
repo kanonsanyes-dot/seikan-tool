@@ -1,3 +1,43 @@
 {% extends 'base.html' %}{%- block h1 -%}品名マスタ{%- endblock -%}{% block content %}
-<form class="card p-3 mb-3 row g-2" method="post" action="{{ url_for('masters.add_product') }}"><div class="col"><input class="form-control" name="product_name" placeholder="品名"></div><div class="col"><input class="form-control" name="process_product_name" placeholder="工程品名"></div><div class="col-auto"><button class="btn btn-primary">追加</button></div></form>
-<div class="card p-3"><table class="table table-sm"><tr><th>ID</th><th>品名</th><th>工程品名</th><th>使用中</th><th>操作</th></tr>{% for p in products %}<tr><form method="post" action="{{ url_for('masters.edit_product', id=p.product_id) }}"><td>{{p.product_id}}</td><td><input class="form-control form-control-sm" name="product_name" value="{{p.product_name}}"></td><td><input class="form-control form-control-sm" name="process_product_name" value="{{p.process_product_name or ''}}"></td><td><input type="checkbox" name="is_active" value="1" {% if p.is_active %}checked{% endif %}></td><td><button class="btn btn-sm btn-success">保存</button></form><form class="d-inline" method="post" action="{{ url_for('masters.delete_product', id=p.product_id) }}"><button class="btn btn-sm btn-danger">削除</button></form></td></tr>{% endfor %}</table></div>{% endblock %}
+
+{# ── インポート / テンプレートDL ── #}
+<div class="card p-3 mb-3">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <span class="fw-bold small text-muted">一括取込 (Excel / CSV)</span>
+    <a href="{{ url_for('masters.products_template') }}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
+    </a>
+    <form method="post" action="{{ url_for('masters.import_products') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:220px" required>
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
+    </form>
+  </div>
+</div>
+
+<form class="card p-3 mb-3 row g-2" method="post" action="{{ url_for('masters.add_product') }}">
+  <div class="col"><input class="form-control" name="product_name" placeholder="品名"></div>
+  <div class="col"><input class="form-control" name="process_product_name" placeholder="工程品名"></div>
+  <div class="col-auto"><button type="submit" class="btn btn-primary">追加</button></div>
+</form>
+<div class="card p-3">
+  <table class="table table-sm">
+    <tr><th>ID</th><th>品名</th><th>工程品名</th><th>使用中</th><th>操作</th></tr>
+    {% for p in products %}
+    <tr>
+      <form method="post" action="{{ url_for('masters.edit_product', id=p.product_id) }}">
+        <td>{{p.product_id}}</td>
+        <td><input class="form-control form-control-sm" name="product_name" value="{{p.product_name}}"></td>
+        <td><input class="form-control form-control-sm" name="process_product_name" value="{{p.process_product_name or ''}}"></td>
+        <td><input type="checkbox" name="is_active" value="1" {% if p.is_active %}checked{% endif %}></td>
+        <td>
+          <button type="submit" class="btn btn-sm btn-success">保存</button>
+      </form>
+      <form class="d-inline" method="post" action="{{ url_for('masters.delete_product', id=p.product_id) }}">
+        <button type="submit" class="btn btn-sm btn-danger">削除</button>
+      </form>
+        </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

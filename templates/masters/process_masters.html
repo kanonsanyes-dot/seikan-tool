@@ -3,6 +3,22 @@
 {% block h1 %}工程マスタ{% endblock %}
 
 {% block content %}
+
+{# ── インポート / テンプレートDL ── #}
+<div class="card p-3 mb-3">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <span class="fw-bold small text-muted">一括取込 (Excel / CSV)</span>
+    <a href="{{ url_for('masters.process_masters_template') }}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
+    </a>
+    <form method="post" action="{{ url_for('masters.import_process_masters') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:220px" required>
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
+    </form>
+    <span class="text-muted small">※ 工程名が一致する場合は上書き更新</span>
+  </div>
+</div>
+
 <div class="row g-4">
   <div class="col-lg-8">
     <div class="card">
