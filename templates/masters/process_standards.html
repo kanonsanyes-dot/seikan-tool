@@ -1,24 +1,22 @@
 {% extends 'base.html' %}
 {%- block h1 -%}品名工程標準マスタ{%- endblock -%}
 {% block content %}
-<style>
-.bulk-bar { display:none; gap:8px; align-items:center; }
-.bulk-bar.show { display:flex; }
-</style>
-
-{# ── インポート / テンプレートDL ── #}
-<div class="card p-3 mb-3">
-  <div class="d-flex gap-3 align-items-center flex-wrap">
-    <span class="fw-bold small text-muted">一括取込</span>
-    <a href="{{ url_for('masters.standards_template') }}" class="btn btn-sm btn-outline-success">
-      <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
-    </a>
-    <form method="post" action="{{ url_for('masters.import_standards') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
-      <input type="file" name="file" accept=".xlsx,.csv" class="form-control form-control-sm" style="width:200px" required>
-      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
-    </form>
-    <span class="text-muted small">※ 品名+工程名が一致する場合は上書き</span>
-  </div>
+{# ── 取込バー ── #}
+<div class="import-bar">
+  <span class="import-label"><i class="bi bi-cloud-upload me-1"></i>一括取込</span>
+  <div class="divider"></div>
+  <a href="{{ url_for('masters.standards_template') }}" class="btn btn-sm btn-outline-success">
+    <i class="bi bi-file-earmark-arrow-down"></i> テンプレートDL
+  </a>
+  <form method="post" action="{{ url_for('masters.import_standards') }}" enctype="multipart/form-data" class="file-upload-wrap">
+    <label class="file-label" for="importFileStd">
+      <i class="bi bi-folder2-open"></i> <span id="fileLabelStd">ファイルを選択</span>
+    </label>
+    <input type="file" id="importFileStd" name="file" accept=".xlsx,.csv"
+           onchange="document.getElementById('fileLabelStd').textContent=this.files[0]?.name||'ファイルを選択'">
+    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> 取込</button>
+  </form>
+  <span class="text-muted" style="font-size:.75rem;">品名+工程名が一致する場合は上書き</span>
 </div>
 
 {# ── 追加フォーム ── #}
@@ -48,7 +46,7 @@
       {% endif %}
     </form>
     <input type="text" id="searchBox" class="form-control form-control-sm" placeholder="テキスト検索..." style="max-width:200px" oninput="filterTable()">
-    <form method="post" action="{{ url_for('masters.bulk_delete_standards') }}" id="bulkForm" class="bulk-bar">
+    <form method="post" action="{{ url_for('masters.bulk_delete_standards') }}" id="bulkForm" class="bulk-action-bar">
       <span class="small text-muted"><span id="selCount">0</span>件選択中</span>
       <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('選択した工程標準を削除しますか？')">
         <i class="bi bi-trash"></i> 一括削除

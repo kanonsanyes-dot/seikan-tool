@@ -607,3 +607,64 @@ body {
   .kpi-grid { grid-template-columns: 1fr; }
   .dashboard-panel { padding: 12px 14px; }
 }
+
+/* ── マスタ共通：取込バー ── */
+.import-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.import-bar .import-label {
+  font-size: .78rem;
+  font-weight: 700;
+  color: #64748B;
+  white-space: nowrap;
+}
+.import-bar .file-upload-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.import-bar .file-upload-wrap input[type="file"] {
+  width: 0;
+  height: 0;
+  opacity: 0;
+  position: absolute;
+}
+.import-bar .file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: .8rem;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.import-bar .file-label:hover { background: #F1F5F9; border-color: #94A3B8; }
+.import-bar .divider { width: 1px; height: 24px; background: #E2E8F0; }
+
+/* ── マスタ共通：一括操作バー ── */
+.bulk-action-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.bulk-action-bar.show { display: flex; }
