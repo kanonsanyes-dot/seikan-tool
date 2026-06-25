@@ -46,6 +46,14 @@ def index():
     )
 
 
+@progress_bp.route("/<int:id>/detail")
+def detail(id):
+    p = db.session.get(ProcessProgress, id)
+    if not p:
+        return "Not found", 404
+    return render_template("progress/detail.html", p=p, order=p.order, today=date.today())
+
+
 @progress_bp.route("/<int:id>/update", methods=["POST"])
 def update(id):
     p = db.session.get(ProcessProgress, id)
