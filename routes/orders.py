@@ -35,8 +35,21 @@ def import_view():
     result=None
     if request.method=="POST":
         try:
+            from services.scheduler_service import generate_schedule
             result=import_orders(request.files.get("file"), UPLOAD_DIR)
-            flash(f"CSV取込完了: 成功{result['success']}件 / エラー{result['error_count']}件 / 照合NG{result['ng_count']}件", "success")
+            sched_ok = sched_err = 0
+            for oid in result.get("order_ids", []):
+                try:
+                    generate_schedule(oid)
+                    sched_ok += 1
+                except Exception:
+                    sched_err += 1
+            flash(
+                f"CSV取込完了: 成功{result['success']}件 / エラー{result['error_count']}件 / 照合NG{result['ng_count']}件"
+                + f"  ▶ スケジュール自動生成: {sched_ok}件"
+                + (f" (失敗 {sched_err}件)" if sched_err else ""),
+                "success"
+            )
         except ImportErrorDetail as e:
             flash(str(e), "danger")
         except Exception as e:
@@ -126,6 +139,7 @@ def import_xls():
 
         elif action == "import":
             from flask import session
+            from services.scheduler_service import generate_schedule
             fpath = session.get("xls_import_path")
             skip_zero = session.get("xls_skip_zero", True)
             if not fpath:
@@ -134,11 +148,24 @@ def import_xls():
             try:
                 records = parse_xls_file(fpath)
                 result = import_to_db(records, skip_zero_remaining=skip_zero)
-                flash(
+
+                # 新規登録受注に対してスケジュール・進捗・ガント用データを自動生成
+                sched_ok = sched_err = 0
+                for oid in result.get("order_ids", []):
+                    try:
+                        generate_schedule(oid)
+                        sched_ok += 1
+                    except Exception:
+                        sched_err += 1
+
+                msg = (
                     f"取込完了: 登録 {result['imported']}件 / スキップ {result['skipped']}件"
-                    + (f" / エラー {len(result['errors'])}件" if result["errors"] else ""),
-                    "success" if not result["errors"] else "warning"
+                    + (f" / エラー {len(result['errors'])}件" if result["errors"] else "")
+                    + f"  ▶ スケジュール自動生成: {sched_ok}件"
+                    + (f" (失敗 {sched_err}件)" if sched_err else "")
                 )
+                level = "success" if not result["errors"] and not sched_err else "warning"
+                flash(msg, level)
             except Exception as e:
                 flash(f"取込エラー: {e}", "danger")
             return redirect(url_for("orders.list_orders"))

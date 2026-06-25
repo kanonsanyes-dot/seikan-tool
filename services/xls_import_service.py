@@ -224,6 +224,7 @@ def import_to_db(records: list[dict], skip_zero_remaining: bool = True) -> dict:
 
     imported = skipped = 0
     errors = []
+    new_order_ids: list[int] = []
 
     for rec in records:
         if skip_zero_remaining and rec["remaining_qty"] == 0:
@@ -253,6 +254,8 @@ def import_to_db(records: list[dict], skip_zero_remaining: bool = True) -> dict:
                 data_quality="未チェック",
             )
             db.session.add(order)
+            db.session.flush()  # order_id を確定
+            new_order_ids.append(order.order_id)
             imported += 1
         except Exception as e:
             errors.append(f"{rec.get('order_no','?')}: {e}")
@@ -262,5 +265,6 @@ def import_to_db(records: list[dict], skip_zero_remaining: bool = True) -> dict:
     except Exception as e:
         db.session.rollback()
         errors.append(f"コミットエラー: {e}")
+        new_order_ids.clear()
 
-    return {"imported": imported, "skipped": skipped, "errors": errors}
+    return {"imported": imported, "skipped": skipped, "errors": errors, "order_ids": new_order_ids}

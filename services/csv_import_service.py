@@ -100,6 +100,7 @@ def import_orders(file_storage, upload_dir: Path):
     ng = 0
     new_customers = set()
     new_products = set()
+    new_order_ids: list[int] = []
 
     for idx, row in enumerate(rows):
         rownum = idx + 2
@@ -135,6 +136,8 @@ def import_orders(file_storage, upload_dir: Path):
             if order.data_quality in ["品名未登録", "工程標準未登録"]:
                 new_products.add(product_name)
             db.session.add(order)
+            db.session.flush()
+            new_order_ids.append(order.order_id)
             success += 1
         except Exception as e:
             errors.append({"row": rownum, "message": str(e)})
@@ -147,6 +150,7 @@ def import_orders(file_storage, upload_dir: Path):
         "errors": errors,
         "new_customers": sorted(new_customers),
         "new_products": sorted(new_products),
+        "order_ids": new_order_ids,
     }
 
 def add_missing_masters(customers, products):
