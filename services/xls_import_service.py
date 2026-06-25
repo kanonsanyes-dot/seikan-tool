@@ -7,8 +7,29 @@
 """
 from __future__ import annotations
 import re
+import unicodedata
 from datetime import date
 from html.parser import HTMLParser
+
+
+def _normalize(s: str) -> str:
+    """
+    半角カナを全角カナへ変換しつつ、丸数字・特殊記号は元のまま保持する。
+    NFKC は丸数字(①②…)を分解してしまうため、文字ごとに変換する。
+    """
+    if not s:
+        return s
+    # 半角カナ → 全角カナの変換テーブル（NFKC の対象だが丸数字は除外）
+    result = []
+    for ch in s:
+        normalized = unicodedata.normalize("NFKC", ch)
+        # 丸数字・囲み文字など特殊記号は元のまま保持
+        cat = unicodedata.category(ch)
+        if cat.startswith("S") or cat.startswith("P") or 0x2460 <= ord(ch) <= 0x24FF:
+            result.append(ch)
+        else:
+            result.append(normalized)
+    return "".join(result)
 
 
 class _TableParser(HTMLParser):
@@ -25,10 +46,12 @@ class _TableParser(HTMLParser):
         elif tag in ("td", "th"):
             self._in_cell = True
             self._cur_cell = ""
+        elif tag == "br" and self._in_cell:
+            self._cur_cell += " "
 
     def handle_endtag(self, tag):
         if tag in ("td", "th"):
-            self._cur_row.append(self._cur_cell.strip())
+            self._cur_row.append(_normalize(self._cur_cell.strip()))
             self._in_cell = False
         elif tag == "tr" and any(c for c in self._cur_row):
             self.rows.append(self._cur_row)
@@ -36,6 +59,26 @@ class _TableParser(HTMLParser):
     def handle_data(self, data):
         if self._in_cell:
             self._cur_cell += data
+
+    def handle_entityref(self, name):
+        """&nbsp; などの名前付きエンティティ"""
+        if not self._in_cell:
+            return
+        import html
+        try:
+            self._cur_cell += html.unescape(f"&{name};")
+        except Exception:
+            pass
+
+    def handle_charref(self, name):
+        """&#160; などの数値参照"""
+        if not self._in_cell:
+            return
+        import html
+        try:
+            self._cur_cell += html.unescape(f"&#{name};")
+        except Exception:
+            pass
 
 
 def _parse_date(s: str) -> date | None:
@@ -78,22 +121,34 @@ COL_MAP = {
 }
 
 
+def _read_file(filepath: str) -> str:
+    """ファイルをバイト列で読み cp932/utf-8 で文字列化する。"""
+    with open(filepath, "rb") as f:
+        raw = f.read()
+
+    # BOM チェック
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        return raw.decode("utf-16", errors="replace")
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return raw.decode("utf-8-sig", errors="replace")
+
+    # Shift-JIS (cp932) が最優先: Excel HTML の標準エンコーディング
+    # cp932 は NEC 拡張 (〜 ∥ − など) も含む Windows 版 Shift-JIS
+    for enc in ("cp932", "utf-8", "latin-1"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("cp932", errors="replace")
+
+
 def parse_xls_file(filepath: str) -> list[dict]:
     """
     HTML-XLS ファイルをパースし、受注レコードのリストを返す。
     - ヘッダ行を自動検出
     - 注残 > 0 のものだけ返す（完納済み除外）
-    - データ区分 が "その他" のものは含める（金型・サンプル含む）
     """
-    for enc in ("shift_jis", "cp932", "utf-8", errors := None):
-        if enc is None:
-            raise ValueError("エンコーディング検出失敗")
-        try:
-            with open(filepath, encoding=enc, errors="replace") as f:
-                html = f.read()
-            break
-        except Exception:
-            continue
+    html = _read_file(filepath)
 
     parser = _TableParser()
     parser.feed(html)
