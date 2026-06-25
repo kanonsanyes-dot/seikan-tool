@@ -34,7 +34,7 @@
 <body class="has-bar">
 <div class="print-bar">
   <strong>工程管理票</strong>
-  <button onclick="window.print()">🖨 印刷 / PDF保存</button>
+  <button type="button" onclick="window.print()">🖨 印刷 / PDF保存</button>
   <a href="{{ url_for('work_orders.detail', wo_id=wo.work_order_id) }}">← 詳細に戻る</a>
   <span style="margin-left:auto;">SeikanTool 出力: {{ today.strftime('%Y-%m-%d') }}</span>
 </div>

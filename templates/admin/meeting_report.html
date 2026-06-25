@@ -105,7 +105,7 @@
 
 <div class="print-bar no-print">
   <strong>SeikanTool — 会議用キャパ確認レポート</strong>
-  <button onclick="window.print()">🖨 印刷 / PDF保存</button>
+  <button type="button" onclick="window.print()">🖨 印刷 / PDF保存</button>
   <a href="{{ url_for('admin.meeting_report_excel', year=year, month=month) }}" style="background:#fff;color:var(--amber);padding:4px 14px;border-radius:4px;font-weight:bold;text-decoration:none;">📥 Excel出力</a>
   <a href="{{ url_for('admin.meeting_report', year=prev_year, month=prev_month) }}">← 前月</a>
   <a href="{{ url_for('admin.meeting_report', year=next_year, month=next_month) }}">翌月 →</a>
