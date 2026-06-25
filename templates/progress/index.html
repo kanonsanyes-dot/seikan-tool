@@ -1,3 +1,311 @@
-{% extends 'base.html' %}{%- block h1 -%}工程進捗表{%- endblock -%}{% block content %}
-<form class="card p-3 mb-3 row g-2"><div class="col-md-3"><input class="form-control" name="process" placeholder="工程で絞込" value="{{process or ''}}"></div><div class="col-auto"><button class="btn btn-primary">表示</button></div></form>
-<div class="card p-3 table-responsive"><table class="table table-sm table-hover"><tr><th>受注ID</th><th>客先</th><th>品名</th><th>数量</th><th>工程</th><th>予定</th><th>実績終了</th><th>状態</th><th>部署</th><th>備考</th><th>保存</th></tr>{% for r in rows %}<tr><form method="post" action="{{ url_for('progress.update', id=r.progress_id) }}"><td>{{r.order_id}}</td><td>{{r.order.customer}}</td><td>{{r.product_name}}</td><td>{{r.quantity}}</td><td>{{r.process_name}}</td><td>{{r.start_date}}〜{{r.end_date}}</td><td><input class="form-control form-control-sm" type="date" name="actual_end_date" value="{{r.actual_end_date or ''}}"></td><td><select class="form-select form-select-sm" name="status">{% for s in ['未着手','進行中','完了','遅延'] %}<option {% if r.status==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select></td><td><input class="form-control form-control-sm" name="department" value="{{r.department or ''}}"></td><td><input class="form-control form-control-sm" name="remarks" value="{{r.remarks or ''}}"></td><td><button class="btn btn-sm btn-success">保存</button></td></form></tr>{% endfor %}</table></div>{% endblock %}
+{% extends 'base.html' %}
+{%- block h1 -%}工程進捗ボード{%- endblock -%}
+
+{% block head %}
+<style>
+/* ── 馬アニメーション ── */
+@keyframes horse-run {
+  0%   { transform: translateX(0) scaleX(1); }
+  49%  { transform: translateX(6px) scaleX(1); }
+  50%  { transform: translateX(6px) scaleX(-1); }
+  99%  { transform: translateX(0) scaleX(-1); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+.horse-icon {
+  display: inline-block;
+  animation: horse-run 1.4s ease-in-out infinite;
+  font-size: 1.1rem;
+  margin-right: 2px;
+}
+
+/* ── カンバンボード ── */
+.kanban-board {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  align-items: flex-start;
+  padding-bottom: 12px;
+}
+.kanban-col {
+  min-width: 210px;
+  max-width: 230px;
+  flex-shrink: 0;
+  background: #F8FAFC;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+}
+.kanban-col-header {
+  padding: 8px 10px 6px;
+  border-radius: 10px 10px 0 0;
+  font-size: .82rem;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid rgba(0,0,0,.08);
+}
+.kanban-col-body {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 60px;
+}
+.prog-card {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  padding: 8px 10px;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: box-shadow .15s;
+  position: relative;
+}
+.prog-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.prog-card.status-inprogress { border-left: 3px solid #3B82F6; }
+.prog-card.status-done       { border-left: 3px solid #22C55E; opacity: .75; }
+.prog-card.status-delay      { border-left: 3px solid #EF4444; }
+.prog-card.status-pending    { border-left: 3px solid #D1D5DB; }
+.prog-card .card-customer { color: #64748B; font-size: .72rem; }
+.prog-card .card-product  { font-weight: 600; margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.prog-card .card-qty      { color: #475569; }
+.prog-card .card-date     { color: #94A3B8; font-size: .7rem; }
+.prog-card .card-date.overdue { color: #EF4444; font-weight: 700; }
+.prog-card .card-status-btn { float: right; margin-top: -2px; }
+.prog-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: #E2E8F0;
+  margin-top: 5px;
+  overflow: hidden;
+}
+.prog-bar-fill { height: 100%; border-radius: 2px; background: #3B82F6; transition: width .3s; }
+
+/* ── フィルタバー ── */
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filter-bar .btn-filter {
+  padding: 3px 12px;
+  border-radius: 20px;
+  border: 1px solid #CBD5E1;
+  background: #fff;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.filter-bar .btn-filter.active {
+  background: #1E40AF;
+  color: #fff;
+  border-color: #1E40AF;
+}
+
+/* ── モーダル ── */
+.progress-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 9000;
+  align-items: center;
+  justify-content: center;
+}
+.progress-modal-overlay.open { display: flex; }
+.progress-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 340px;
+  max-width: 460px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── フィルタ & 自動更新 ── #}
+<div class="card p-3 mb-3">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="filter-bar">
+      <span class="small fw-bold text-muted">表示:</span>
+      <button class="btn-filter {% if active_filter=='active' %}active{% endif %}" onclick="location.href='?status=active'">進行中受注</button>
+      <button class="btn-filter {% if active_filter=='inprogress' %}active{% endif %}" onclick="location.href='?status=inprogress'">作業中のみ</button>
+      <button class="btn-filter {% if active_filter=='overdue' %}active{% endif %}" onclick="location.href='?status=overdue'">期限超過</button>
+      <button class="btn-filter {% if active_filter=='all' %}active{% endif %}" onclick="location.href='?status=all'">全件</button>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <span class="text-muted small" id="autoRefreshLabel">自動更新: <span id="countdown">60</span>s</span>
+      <button class="btn btn-sm btn-outline-primary" onclick="location.reload()"><i class="bi bi-arrow-clockwise"></i> 更新</button>
+    </div>
+  </div>
+</div>
+
+{# ── アラートバナー（動的） ── #}
+<div id="alertBanner"></div>
+
+{# ── カンバンボード ── #}
+<div class="kanban-board" id="kanbanBoard">
+{% for proc in process_names %}
+  {% set cards = kanban.get(proc, []) %}
+  {% set inprogress_count = cards | selectattr('status', 'eq', '進行中') | list | length %}
+  {% set overdue_count = cards | selectattr('end_date') | selectattr('status', 'ne', '完了') | list %}
+
+  <div class="kanban-col" data-process="{{ proc }}">
+    <div class="kanban-col-header">
+      <span>{{ proc }}</span>
+      <span class="badge bg-secondary">{{ cards | length }}</span>
+    </div>
+    <div class="kanban-col-body">
+    {% for r in cards %}
+      {% set is_overdue = r.end_date and r.end_date < today and r.status != '完了' %}
+      {% set pct = ((r.completed_qty or 0) / r.quantity * 100) | int if r.quantity else 0 %}
+      <div class="prog-card status-{% if r.status == '進行中' %}inprogress{% elif r.status == '完了' %}done{% elif is_overdue %}delay{% else %}pending{% endif %}"
+           data-id="{{ r.progress_id }}"
+           data-status="{{ r.status }}"
+           data-qty="{{ r.quantity }}"
+           data-completed="{{ r.completed_qty or 0 }}"
+           data-product="{{ r.product_name }}"
+           data-customer="{{ r.order.customer }}"
+           data-start="{{ r.start_date }}"
+           data-end="{{ r.end_date }}"
+           data-remarks="{{ r.remarks or '' }}"
+           onclick="openProgressModal(this)">
+        <div class="d-flex justify-content-between align-items-start">
+          <span class="card-customer">{{ r.order.customer }}</span>
+          <span class="ms-1">
+            {% if r.status == '進行中' %}<span class="horse-icon">🐎</span>{% endif %}
+            <span class="badge {% if r.status == '進行中' %}bg-primary{% elif r.status == '完了' %}bg-success{% elif is_overdue %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size:.65rem;">{{ r.status }}</span>
+          </span>
+        </div>
+        <div class="card-product" title="{{ r.product_name }}">{{ r.product_name }}</div>
+        <div class="card-qty">{{ "{:,}".format(r.quantity) }} pcs {% if r.completed_qty %}/ 済 {{ "{:,}".format(r.completed_qty) }}{% endif %}</div>
+        <div class="card-date {% if is_overdue %}overdue{% endif %}">
+          {{ r.start_date }} 〜 {{ r.end_date }}
+          {% if is_overdue %} ⚠ 超過{% endif %}
+        </div>
+        {% if r.quantity and r.completed_qty %}
+        <div class="prog-bar"><div class="prog-bar-fill" style="width:{{ pct }}%;{% if pct >= 100 %}background:#22C55E;{% endif %}"></div></div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="text-muted text-center py-3" style="font-size:.75rem;">なし</div>
+    {% endfor %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+{# ── 進捗更新モーダル ── #}
+<div class="progress-modal-overlay" id="progressModal" onclick="if(event.target===this)closeProgressModal()">
+  <div class="progress-modal">
+    <h5 class="mb-3" id="modalTitle">進捗更新</h5>
+    <input type="hidden" id="modalId">
+    <div class="mb-2">
+      <label class="form-label small fw-bold">品名</label>
+      <div id="modalProduct" class="form-control-plaintext ps-0"></div>
+    </div>
+    <div class="row g-2 mb-2">
+      <div class="col">
+        <label class="form-label small fw-bold">ステータス</label>
+        <select class="form-select form-select-sm" id="modalStatus">
+          <option>未着手</option>
+          <option>進行中</option>
+          <option>完了</option>
+          <option>遅延</option>
+          <option>保留</option>
+        </select>
+      </div>
+      <div class="col">
+        <label class="form-label small fw-bold">完了数量</label>
+        <input type="number" class="form-control form-control-sm" id="modalCompleted" min="0">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label small fw-bold">備考</label>
+      <textarea class="form-control form-control-sm" id="modalRemarks" rows="2"></textarea>
+    </div>
+    <div class="d-flex gap-2 justify-content-end">
+      <button class="btn btn-secondary btn-sm" onclick="closeProgressModal()">キャンセル</button>
+      <button class="btn btn-primary btn-sm" onclick="saveProgress()"><i class="bi bi-check2"></i> 保存</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── カンバン列カラー ──
+const COL_COLORS = [
+  '#DBEAFE','#FEF9C3','#FEF3C7','#EDE9FE','#FEE2E2',
+  '#DCFCE7','#E0F2FE','#FCE7F3','#F0FDF4','#FFF7ED','#F1F5F9',
+];
+document.querySelectorAll('.kanban-col-header').forEach((h, i) => {
+  h.style.background = COL_COLORS[i % COL_COLORS.length];
+});
+
+// ── 自動リフレッシュカウントダウン ──
+let countdown = 60;
+const cdEl = document.getElementById('countdown');
+setInterval(() => {
+  countdown--;
+  if (cdEl) cdEl.textContent = countdown;
+  if (countdown <= 0) location.reload();
+}, 1000);
+
+// ── アラートバナー（API から動的取得）──
+fetch('/api/alerts')
+  .then(r => r.json())
+  .then(data => {
+    const banner = document.getElementById('alertBanner');
+    if (!data.alerts || !data.alerts.length) return;
+    const html = data.alerts.map(a => `
+      <div class="alert alert-${a.level === 'danger' ? 'danger' : 'warning'} py-2 px-3 mb-2 d-flex justify-content-between align-items-center">
+        <span><strong>[${a.category}]</strong> ${a.message}</span>
+        <a href="${a.url}" class="btn btn-sm btn-outline-${a.level === 'danger' ? 'danger' : 'warning'} ms-3">確認 →</a>
+      </div>`).join('');
+    banner.innerHTML = html;
+  })
+  .catch(() => {});
+
+// ── 進捗モーダル ──
+function openProgressModal(el) {
+  document.getElementById('modalId').value = el.dataset.id;
+  document.getElementById('modalTitle').textContent = el.dataset.product;
+  document.getElementById('modalProduct').textContent = `${el.dataset.customer}  ${el.dataset.start} 〜 ${el.dataset.end}`;
+  document.getElementById('modalStatus').value = el.dataset.status;
+  document.getElementById('modalCompleted').value = el.dataset.completed || '';
+  document.getElementById('modalCompleted').max = el.dataset.qty || 99999;
+  document.getElementById('modalRemarks').value = el.dataset.remarks || '';
+  document.getElementById('progressModal').classList.add('open');
+}
+
+function closeProgressModal() {
+  document.getElementById('progressModal').classList.remove('open');
+}
+
+async function saveProgress() {
+  const id = document.getElementById('modalId').value;
+  const payload = {
+    status: document.getElementById('modalStatus').value,
+    completed_qty: parseInt(document.getElementById('modalCompleted').value || '0'),
+    remarks: document.getElementById('modalRemarks').value,
+  };
+  try {
+    const res = await fetch(`/api/progress/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      closeProgressModal();
+      location.reload();
+    } else {
+      alert('保存失敗: ' + (data.error || '不明'));
+    }
+  } catch (e) {
+    alert('通信エラー: ' + e.message);
+  }
+}
+</script>
+{% endblock %}

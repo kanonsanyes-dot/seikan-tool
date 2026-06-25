@@ -111,6 +111,7 @@ class ProcessProgress(db.Model, TimestampMixin):
     actual_end_date = db.Column(db.Date)
     ship_date = db.Column(db.Date)
     status = db.Column(db.String(20), default="未着手")
+    completed_qty = db.Column(db.Integer, default=0)
     department = db.Column(db.String(100))
     remarks = db.Column(db.Text)
 

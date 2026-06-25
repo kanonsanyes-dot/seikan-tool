@@ -44,6 +44,10 @@
          href="{{ url_for('reports.summary') }}">
         <i class="bi bi-bar-chart-fill"></i><span>集計レポート</span>
       </a>
+      <a class="sb-link {% if current_path == '/reports/yield' %}sb-active{% endif %}"
+         href="{{ url_for('reports.yield_report') }}">
+        <i class="bi bi-graph-up-arrow"></i><span>歩留まりレポート</span>
+      </a>
       <a class="sb-link {% if current_path.startswith('/scheduler') or current_path.startswith('/api/scheduler') %}sb-active{% endif %}"
          href="{{ url_for('scheduler.scheduler_view') }}">
         <i class="bi bi-calendar-check-fill"></i><span>スケジューラー</span>
@@ -63,6 +67,7 @@
       <a class="sb-link {% if current_path.startswith('/delay') %}sb-active{% endif %}"
          href="{{ url_for('delay.index') }}">
         <i class="bi bi-exclamation-triangle-fill"></i><span>遅延リスク</span>
+        <span class="sb-alert-badge" id="sb-alert-total" style="display:none;"></span>
       </a>
       <a class="sb-link {% if current_path.startswith('/admin') %}sb-active{% endif %}"
          href="{{ url_for('admin.index') }}">
@@ -132,6 +137,21 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+// サイドバーアラートバッジ（全ページ共通）
+(function() {
+  fetch('/api/alerts')
+    .then(r => r.json())
+    .then(data => {
+      const total = data.total || 0;
+      if (total > 0) {
+        const badge = document.getElementById('sb-alert-total');
+        if (badge) { badge.textContent = total; badge.style.display = 'inline-flex'; }
+      }
+    })
+    .catch(() => {});
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
